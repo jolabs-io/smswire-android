@@ -1,0 +1,121 @@
+[
+  {
+    "name": "empty",
+    "text": "",
+    "encoding": "GSM-7",
+    "length": 0,
+    "segments": 0
+  },
+  {
+    "name": "160 plain is one part",
+    "text": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "encoding": "GSM-7",
+    "length": 160,
+    "segments": 1
+  },
+  {
+    "name": "161 plain splits at 153",
+    "text": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "encoding": "GSM-7",
+    "length": 161,
+    "segments": 2
+  },
+  {
+    "name": "306 plain is two parts",
+    "text": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "encoding": "GSM-7",
+    "length": 306,
+    "segments": 2
+  },
+  {
+    "name": "307 plain is three parts",
+    "text": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "encoding": "GSM-7",
+    "length": 307,
+    "segments": 3
+  },
+  {
+    "name": "extension chars cost two septets",
+    "text": "€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€",
+    "encoding": "GSM-7",
+    "length": 80,
+    "segments": 1
+  },
+  {
+    "name": "81 euro signs overflow one part",
+    "text": "€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€€",
+    "encoding": "GSM-7",
+    "length": 81,
+    "segments": 2
+  },
+  {
+    "name": "one non-GSM char (½) forces unicode",
+    "text": "Café à Genève, ½ off? No: ÄÖÑÜ§¿",
+    "encoding": "Unicode",
+    "length": 32,
+    "segments": 1
+  },
+  {
+    "name": "gsm basic accents",
+    "text": "èéùìòÇ ØøÅåÆæßÉ äöñüà",
+    "encoding": "GSM-7",
+    "length": 21,
+    "segments": 1
+  },
+  {
+    "name": "emoji switches to unicode",
+    "text": "Hi 👋",
+    "encoding": "Unicode",
+    "length": 5,
+    "segments": 1
+  },
+  {
+    "name": "70 unicode units is one part",
+    "text": "üüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüç",
+    "encoding": "Unicode",
+    "length": 70,
+    "segments": 1
+  },
+  {
+    "name": "surrogate pair pushes past 70",
+    "text": "üüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüü😀",
+    "encoding": "Unicode",
+    "length": 72,
+    "segments": 2
+  },
+  {
+    "name": "134 unicode units is two parts",
+    "text": "çççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççç",
+    "encoding": "Unicode",
+    "length": 134,
+    "segments": 2
+  },
+  {
+    "name": "135 unicode units is three parts",
+    "text": "ççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççç",
+    "encoding": "Unicode",
+    "length": 135,
+    "segments": 3
+  },
+  {
+    "name": "newline and carriage return are GSM",
+    "text": "Line 1\r\nLine 2",
+    "encoding": "GSM-7",
+    "length": 14,
+    "segments": 1
+  },
+  {
+    "name": "tab is not GSM",
+    "text": "a\tb",
+    "encoding": "Unicode",
+    "length": 3,
+    "segments": 1
+  },
+  {
+    "name": "OTP text",
+    "text": "Your code is 482913. It expires in 5 minutes.",
+    "encoding": "GSM-7",
+    "length": 45,
+    "segments": 1
+  }
+]

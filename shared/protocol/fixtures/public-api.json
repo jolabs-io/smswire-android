@@ -1,0 +1,423 @@
+{
+  "SendMessageRequest": [
+    {
+      "to": "+447700900123",
+      "body": "Your code is 482913"
+    },
+    {
+      "to": "+447700900123",
+      "body": "Hi",
+      "sim": 2
+    },
+    {
+      "to": "+447700900123",
+      "body": "Your code is 482913",
+      "type": "otp",
+      "tags": [
+        "login",
+        "web"
+      ],
+      "metadata": {
+        "user_id": 42,
+        "flow": "signup"
+      }
+    },
+    {
+      "to": "+251911234567",
+      "template": "appointment",
+      "variables": {
+        "name": "Tom",
+        "time": "10:00"
+      }
+    },
+    {
+      "to": "+447700900123",
+      "body": "Your appointment is tomorrow at 10:00",
+      "send_at": "2026-11-02T08:00:00Z"
+    }
+  ],
+  "BulkSendRequest": [
+    {
+      "messages": [
+        {
+          "to": "+447700900112",
+          "body": "Hi Tom"
+        }
+      ]
+    },
+    {
+      "name": "Weekend sale",
+      "messages": [],
+      "rate": 30,
+      "sim": 1
+    },
+    {
+      "name": "Weekend sale",
+      "messages": [
+        {
+          "to": "+447700900112",
+          "body": "Hi Tom"
+        },
+        {
+          "to": "+447700900113",
+          "body": "Hi Ivy",
+          "tags": [
+            "vip"
+          ]
+        }
+      ],
+      "type": "marketing",
+      "tags": [
+        "sale"
+      ],
+      "metadata": {
+        "campaign": "wk43"
+      }
+    },
+    {
+      "messages": [
+        {
+          "to": "+251911000001",
+          "variables": {
+            "name": "Tom"
+          }
+        },
+        {
+          "to": "+251911000002",
+          "body": "Custom for Ivy"
+        }
+      ],
+      "body": "Hi {{name|there}}, see you soon"
+    },
+    {
+      "name": "Monday reminders",
+      "body": "See you at {{slot}}",
+      "send_at": "2026-11-02T07:00:00Z",
+      "messages": [
+        {
+          "to": "+447700900123",
+          "variables": {
+            "slot": "10:00"
+          }
+        }
+      ]
+    }
+  ],
+  "MessageView": [
+    {
+      "id": "msg_01JABCD1234",
+      "to": "+447700900123",
+      "status": "queued",
+      "segments": 1,
+      "received_at": "2026-10-27T10:42:00Z",
+      "type": "transactional",
+      "tags": []
+    },
+    {
+      "id": "msg_01JABCD1234",
+      "to": "+447700900123",
+      "status": "delivered",
+      "segments": 2,
+      "batch_id": "bat_0123456789",
+      "received_at": "2026-10-27T10:42:00Z",
+      "sent_at": "2026-10-27T10:42:01Z",
+      "delivered_at": "2026-10-27T10:42:04Z",
+      "type": "transactional",
+      "tags": []
+    },
+    {
+      "id": "msg_01JABCD1234",
+      "to": "+447700900123",
+      "status": "failed",
+      "error": "Radio off",
+      "segments": 1,
+      "received_at": "2026-10-27T10:42:00Z",
+      "type": "transactional",
+      "tags": []
+    },
+    {
+      "id": "msg_01JABCD1235",
+      "to": "+447700900124",
+      "status": "queued",
+      "segments": 1,
+      "type": "otp",
+      "tags": [
+        "login"
+      ],
+      "metadata": {
+        "user_id": 42
+      },
+      "received_at": "2026-10-27T10:42:00Z"
+    },
+    {
+      "id": "msg_01JABCD1236",
+      "to": "+447700900125",
+      "status": "cancelled",
+      "segments": 1,
+      "type": "notification",
+      "tags": [],
+      "received_at": "2026-10-27T10:42:00Z",
+      "scheduled_at": "2026-11-02T08:00:00Z"
+    }
+  ],
+  "BulkSendResponse": [
+    {
+      "batch_id": "bat_0123456789",
+      "accepted": 1,
+      "rejected": []
+    },
+    {
+      "batch_id": "bat_0123456789",
+      "accepted": 1,
+      "rejected": [
+        {
+          "index": 1,
+          "to": "abc",
+          "reason": "invalid_number"
+        }
+      ]
+    }
+  ],
+  "ErrorResponse": [
+    {
+      "error": "invalid_api_key",
+      "message": "Missing or invalid API key"
+    }
+  ],
+  "StatusWebhookPayload": [
+    {
+      "id": "msg_01JABCD1234",
+      "to": "+447700900123",
+      "status": "delivered",
+      "segments": 1,
+      "sent_at": "2026-10-27T10:42:01Z",
+      "delivered_at": "2026-10-27T10:42:04Z",
+      "event": "message.status",
+      "type": "transactional",
+      "tags": []
+    },
+    {
+      "event": "message.status",
+      "id": "msg_01JABCD1235",
+      "project_id": "p_abc123def456",
+      "to": "+447700900124",
+      "status": "failed",
+      "error": "SIM 2 not available",
+      "segments": 1,
+      "type": "marketing",
+      "tags": [
+        "sale"
+      ],
+      "metadata": {
+        "campaign": "wk43"
+      },
+      "batch_id": "bat_0123456789"
+    },
+    {
+      "event": "message.status",
+      "id": "msg_01JABCD1236",
+      "project_id": "p_abc123def456",
+      "to": "+447700900125",
+      "status": "cancelled",
+      "segments": 1,
+      "type": "notification",
+      "tags": []
+    }
+  ],
+  "MessagePage": [
+    {
+      "data": [
+        {
+          "id": "msg_01JABCD1234",
+          "to": "+447700900123",
+          "status": "queued",
+          "segments": 1,
+          "received_at": "2026-10-27T10:42:00Z",
+          "type": "transactional",
+          "tags": []
+        }
+      ],
+      "next_cursor": "MTc2MTU2MjEyMDAwMDptc2dfMDFK"
+    },
+    {
+      "data": []
+    }
+  ],
+  "OtpRequest": [
+    {
+      "to": "+447700900123",
+      "length": 6,
+      "ttl": 300
+    },
+    {
+      "to": "+447700900123",
+      "length": 4,
+      "ttl": 120,
+      "body": "{{code}} is your Shopfront code",
+      "sim": 1
+    },
+    {
+      "to": "+447700900123",
+      "length": 6,
+      "ttl": 300,
+      "template": "login-code"
+    }
+  ],
+  "OtpResponse": [
+    {
+      "id": "otp_k3J9xQ2mP0aZ",
+      "to": "+447700900123",
+      "expires_at": "2026-10-27T10:47:00Z",
+      "message_id": "msg_01JABCD1240"
+    }
+  ],
+  "OtpVerifyRequest": [
+    {
+      "id": "otp_k3J9xQ2mP0aZ",
+      "code": "482913"
+    }
+  ],
+  "OtpVerifyResponse": [
+    {
+      "valid": true
+    },
+    {
+      "valid": false,
+      "reason": "expired"
+    },
+    {
+      "valid": false,
+      "reason": "too_many_attempts"
+    }
+  ],
+  "ScheduleRequest": [
+    {
+      "cron": "0 9 * * 1",
+      "timezone": "Africa/Addis_Ababa",
+      "to": "+251911234567",
+      "body": "Hi {{name}}, your weekly reminder",
+      "variables": {
+        "name": "Abebe"
+      },
+      "enabled": true
+    },
+    {
+      "name": "Monthly balance",
+      "cron": "0 8 1 * *",
+      "timezone": "UTC",
+      "messages": [
+        {
+          "to": "+447700900123",
+          "variables": {
+            "balance": 120
+          }
+        }
+      ],
+      "group_ids": [
+        "grp_k3J9xQ2mP"
+      ],
+      "template": "balance-reminder",
+      "type": "notification",
+      "tags": [
+        "billing"
+      ],
+      "rate": 20,
+      "max_runs": 12,
+      "enabled": true
+    }
+  ],
+  "ScheduleUpdate": [
+    {
+      "enabled": false
+    },
+    {
+      "cron": "30 8 * * 1-5",
+      "timezone": "Africa/Addis_Ababa",
+      "ends_at": "2027-01-01T00:00:00Z"
+    }
+  ],
+  "ScheduleView": [
+    {
+      "id": "rec_k3J9xQ2mP0aZ",
+      "name": "Weekly reminder",
+      "cron": "0 9 * * 1",
+      "timezone": "Africa/Addis_Ababa",
+      "enabled": true,
+      "body": "Hi {{name}}, your weekly reminder",
+      "tags": [],
+      "recipients": {
+        "numbers": 1,
+        "group_ids": []
+      },
+      "next_run_at": "2026-11-02T06:00:00Z",
+      "run_count": 0,
+      "created_at": "2026-10-29T10:00:00Z"
+    },
+    {
+      "id": "rec_k3J9xQ2mP0aZ",
+      "name": "Weekly reminder",
+      "cron": "0 9 * * 1",
+      "timezone": "Africa/Addis_Ababa",
+      "enabled": true,
+      "tags": [],
+      "recipients": {
+        "numbers": 2,
+        "group_ids": [
+          "grp_k3J9xQ2mP"
+        ]
+      },
+      "next_run_at": "2026-11-02T06:00:00Z",
+      "run_count": 3,
+      "created_at": "2026-10-29T10:00:00Z",
+      "last_run_at": "2026-10-26T06:00:05Z",
+      "template_id": "tpl_k3J9xQ2mP",
+      "type": "notification",
+      "max_runs": 12,
+      "last_run": {
+        "at": "2026-10-26T06:00:00Z",
+        "status": "sent",
+        "batch_id": "bat_0123456789",
+        "accepted": 41,
+        "rejected": 1
+      },
+      "runs": [
+        {
+          "at": "2026-10-26T06:00:00Z",
+          "status": "sent",
+          "batch_id": "bat_0123456789",
+          "accepted": 41,
+          "rejected": 1
+        },
+        {
+          "at": "2026-10-19T06:00:00Z",
+          "status": "failed",
+          "accepted": 0,
+          "rejected": 0,
+          "error": "no_device: This project has no phone assigned to send from"
+        }
+      ]
+    }
+  ],
+  "SchedulePage": [
+    {
+      "data": [
+        {
+          "id": "rec_k3J9xQ2mP0aZ",
+          "name": "Weekly reminder",
+          "cron": "0 9 * * 1",
+          "timezone": "Africa/Addis_Ababa",
+          "enabled": true,
+          "body": "Hi {{name}}, your weekly reminder",
+          "tags": [],
+          "recipients": {
+            "numbers": 1,
+            "group_ids": []
+          },
+          "next_run_at": "2026-11-02T06:00:00Z",
+          "run_count": 0,
+          "created_at": "2026-10-29T10:00:00Z"
+        }
+      ]
+    }
+  ]
+}

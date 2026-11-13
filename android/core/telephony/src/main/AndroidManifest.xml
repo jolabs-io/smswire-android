@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.SEND_SMS" />
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+    <uses-feature android:name="android.hardware.telephony" android:required="true" />
+
+    <!--
+      Receiving SMS (RECEIVE_SMS, SmsReceivedReceiver) and the default-SMS-app receivers live in the
+      app's two-way build only (android/app/src/twoWay/AndroidManifest.xml): Play Protect blocks
+      browser installs of apps that can read incoming SMS in some countries.
+    -->
+    <application>
+        <receiver
+            android:name=".SmsResultReceiver"
+            android:exported="false" />
+
+        <!--
+          Also required of the default SMS app; harmless in the send-only build, which can't become
+          one. Declared here rather than in the two-way manifest: lint's ForegroundServiceType check
+          misreads GatewayService when a flavor manifest declares a service.
+        -->
+        <service
+            android:name=".RespondViaMessageService"
+            android:exported="true"
+            android:permission="android.permission.SEND_RESPOND_VIA_MESSAGE">
+            <intent-filter>
+                <action android:name="android.intent.action.RESPOND_VIA_MESSAGE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="sms" />
+                <data android:scheme="smsto" />
+            </intent-filter>
+        </service>
+    </application>
+</manifest>

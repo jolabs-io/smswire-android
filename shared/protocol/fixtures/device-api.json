@@ -1,0 +1,53 @@
+{
+  "PairDeviceRequest": [
+    {
+      "code": "KTQZ-W8ZJ",
+      "name": "Galaxy A56",
+      "model": "SM-A566B"
+    }
+  ],
+  "PairDeviceResponse": [
+    {
+      "deviceId": "dev_yhksd0jiq3df",
+      "token": "smswire_phone_abc",
+      "workspace": {
+        "id": "ws_4v0czrsafywf",
+        "name": "Fortune Clinics"
+      }
+    }
+  ],
+  "ProjectDto": [
+    {
+      "id": "p_abc123def456",
+      "name": "Shop",
+      "slug": "prj_x1y2z3",
+      "endpoint": "https://gw.example.com/v1/p/prj_x1y2z3/messages",
+      "enabled": true,
+      "createdAt": 1761643200000,
+      "defaultType": "transactional"
+    },
+    {
+      "id": "p_abc123def456",
+      "name": "Shop",
+      "slug": "prj_x1y2z3",
+      "endpoint": "https://gw.example.com/v1/p/prj_x1y2z3/messages",
+      "webhookUrl": "https://shop.example.com/hooks/sms",
+      "enabled": false,
+      "createdAt": 1761643200000,
+      "sim": 2,
+      "defaultType": "otp"
+    }
+  ],
+  "BatchDto": [
+    {
+      "id": "bat_0123456789",
+      "projectId": "p_abc123def456",
+      "name": "Promo",
+      "source": "app",
+      "total": 2,
+      "rate": 20,
+      "status": "done",
+      "createdAt": 1761643200000
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "name": "SMSWire",
+  "shortName": "SMSWire",
+  "consoleName": "SMSWire Console",
+  "company": "Jolab",
+  "descriptor": "your phone, a gateway",
+  "tagline": "Send SMS from your web app through your own Android phones.",
+  "description": "Turn your Android phones into an SMS gateway. Pair a phone, get an API key, and send login codes and receipts on your SIM plan, with delivery webhooks.",
+  "supportEmail": "support@smswire.app",
+  "accent": "#C8F25A",
+  "ink": "#0E0F0D"
+}

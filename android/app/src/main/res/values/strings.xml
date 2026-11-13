@@ -1,0 +1,4 @@
+<resources>
+    <string name="notification_channel">Gateway status</string>
+    <string name="action_exit">Exit</string>
+</resources>

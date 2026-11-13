@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The two-way build: receives SMS (replies and STOP reach the web inbox) and can be the default SMS
+  app. The send-only build leaves all of this out, so Play Protect's fraud protection, which blocks
+  browser installs of apps that can read incoming SMS in some countries, lets it through.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Replies reach the web inbox (SmsReceivedReceiver), default SMS app or not. -->
+    <uses-permission android:name="android.permission.RECEIVE_SMS" />
+
+    <application>
+        <activity android:name=".MainActivity" android:exported="true">
+            <!-- Required of the default SMS app (see DefaultSmsApp); opens the gateway. -->
+            <intent-filter>
+                <action android:name="android.intent.action.SENDTO" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="sms" />
+                <data android:scheme="smsto" />
+            </intent-filter>
+        </activity>
+
+        <receiver
+            android:name="app.relay.android.telephony.SmsReceivedReceiver"
+            android:exported="true"
+            android:permission="android.permission.BROADCAST_SMS">
+            <intent-filter>
+                <action android:name="android.provider.Telephony.SMS_RECEIVED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Required of the default SMS app (DefaultSmsComponents in core/telephony; its quick-reply
+             service is declared there, for both builds: it reads nothing). -->
+        <receiver
+            android:name="app.relay.android.telephony.IncomingSmsReceiver"
+            android:exported="true"
+            android:permission="android.permission.BROADCAST_SMS">
+            <intent-filter>
+                <action android:name="android.provider.Telephony.SMS_DELIVER" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
+            android:name="app.relay.android.telephony.MmsPushReceiver"
+            android:exported="true"
+            android:permission="android.permission.BROADCAST_WAP_PUSH">
+            <intent-filter>
+                <action android:name="android.provider.Telephony.WAP_PUSH_DELIVER" />
+                <data android:mimeType="application/vnd.wap.mms-message" />
+            </intent-filter>
+        </receiver>
+    </application>
+</manifest>

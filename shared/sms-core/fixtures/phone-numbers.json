@@ -1,0 +1,50 @@
+[
+  {
+    "raw": "+44 7700 900123",
+    "normalized": "+447700900123"
+  },
+  {
+    "raw": "  +1 (415) 555-0100 ",
+    "normalized": "+14155550100"
+  },
+  {
+    "raw": "07700900571",
+    "normalized": "07700900571"
+  },
+  {
+    "raw": "0911-23-45-67",
+    "normalized": "0911234567"
+  },
+  {
+    "raw": "+251 911 234 567",
+    "normalized": "+251911234567"
+  },
+  {
+    "raw": "1234567",
+    "normalized": null
+  },
+  {
+    "raw": "12345678",
+    "normalized": "12345678"
+  },
+  {
+    "raw": "+44 7700 ABC",
+    "normalized": null
+  },
+  {
+    "raw": "44+7700900123",
+    "normalized": null
+  },
+  {
+    "raw": "",
+    "normalized": null
+  },
+  {
+    "raw": "+44 7700900123",
+    "normalized": null
+  },
+  {
+    "raw": "abc",
+    "normalized": null
+  }
+]

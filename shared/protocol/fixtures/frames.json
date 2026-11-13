@@ -1,0 +1,237 @@
+{
+  "ServerFrame": [
+    {
+      "type": "welcome",
+      "deviceId": "android-3f2a",
+      "heldCount": 4
+    },
+    {
+      "type": "dispatch",
+      "jobs": [
+        {
+          "messageId": "msg_01JABCD1234",
+          "projectId": "p_abc123def456",
+          "to": "+447700900123",
+          "body": "Your code is 482913",
+          "receivedAt": 1761643200000,
+          "type": "transactional",
+          "priority": 1
+        },
+        {
+          "messageId": "msg_01JABCD1235",
+          "projectId": "p_abc123def456",
+          "to": "+447700900124",
+          "body": "Hi Tom",
+          "receivedAt": 1761643200001,
+          "batchId": "bat_0123456789",
+          "sim": 2,
+          "type": "transactional",
+          "priority": 1
+        },
+        {
+          "messageId": "msg_01JABCD1236",
+          "projectId": "p_abc123def456",
+          "to": "+447700900125",
+          "body": "Code 1234",
+          "receivedAt": 1761643200002,
+          "type": "otp",
+          "priority": 0
+        }
+      ]
+    },
+    {
+      "type": "batch",
+      "batch": {
+        "id": "bat_0123456789",
+        "projectId": "p_abc123def456",
+        "name": "Weekend sale",
+        "source": "api",
+        "total": 120,
+        "rate": 30,
+        "status": "running",
+        "createdAt": 1761643200000
+      }
+    },
+    {
+      "type": "held",
+      "count": 12
+    },
+    {
+      "type": "status_ack",
+      "messageId": "msg_01JABCD1234",
+      "status": "delivered"
+    },
+    {
+      "type": "webhook_result",
+      "messageId": "msg_01JABCD1234",
+      "status": "sent",
+      "httpStatus": 200,
+      "durationMs": 84
+    },
+    {
+      "type": "webhook_result",
+      "messageId": "msg_01JABCD1234",
+      "status": "failed",
+      "durationMs": 10001,
+      "error": "timeout"
+    },
+    {
+      "type": "pong",
+      "sentAt": 1761643200000
+    },
+    {
+      "type": "batch_control",
+      "batchId": "bat_0123456789",
+      "status": "paused"
+    },
+    {
+      "type": "projects_changed"
+    },
+    {
+      "type": "batch",
+      "batch": {
+        "id": "bat_web",
+        "projectId": "p_abc123def456",
+        "name": "From the web",
+        "source": "web",
+        "total": 3,
+        "rate": 20,
+        "status": "running",
+        "createdAt": 1761643200000
+      }
+    },
+    {
+      "type": "incoming_ack",
+      "ref": "in_8f2a91"
+    },
+    {
+      "type": "apply_settings",
+      "settings": {
+        "maxRatePerMinute": 20,
+        "defaultSim": "alternate"
+      }
+    },
+    {
+      "type": "apply_settings",
+      "settings": {
+        "gatewayOnline": false
+      }
+    }
+  ],
+  "DeviceFrame": [
+    {
+      "type": "hello",
+      "gatewayOnline": true,
+      "appVersion": "1.0.0",
+      "sims": []
+    },
+    {
+      "type": "hello",
+      "gatewayOnline": true,
+      "appVersion": "2.0.0",
+      "sims": [
+        {
+          "slot": 1,
+          "carrier": "Ethio telecom"
+        },
+        {
+          "slot": 2,
+          "carrier": "Safaricom"
+        }
+      ],
+      "battery": 82,
+      "charging": true,
+      "smsLimitPerMinute": 30
+    },
+    {
+      "type": "hello",
+      "gatewayOnline": true,
+      "appVersion": "2.1.0",
+      "sims": [
+        {
+          "slot": 1,
+          "carrier": "Ethio telecom"
+        }
+      ],
+      "battery": 64,
+      "charging": false,
+      "settings": {
+        "gatewayOnline": true,
+        "defaultSim": "sim1",
+        "maxRatePerMinute": 30,
+        "maxRetries": 2,
+        "requestDeliveryReports": true,
+        "keepAlive": true,
+        "startOnBoot": true,
+        "onlySendWhileCharging": false,
+        "inboxSync": "replies"
+      }
+    },
+    {
+      "type": "gateway_state",
+      "online": false
+    },
+    {
+      "type": "settings",
+      "settings": {
+        "gatewayOnline": false,
+        "defaultSim": "sim2",
+        "maxRatePerMinute": 10,
+        "maxRetries": 0,
+        "requestDeliveryReports": false,
+        "keepAlive": true,
+        "startOnBoot": false,
+        "onlySendWhileCharging": true,
+        "inboxSync": "off"
+      }
+    },
+    {
+      "type": "status",
+      "messageId": "msg_01JABCD1234",
+      "status": "sent",
+      "at": 1761643201000
+    },
+    {
+      "type": "status",
+      "messageId": "msg_01JABCD1234",
+      "status": "failed",
+      "at": 1761643202000,
+      "error": "SIM 2 not available"
+    },
+    {
+      "type": "batch_control",
+      "batchId": "bat_0123456789",
+      "status": "paused"
+    },
+    {
+      "type": "ping",
+      "sentAt": 1761643200000
+    },
+    {
+      "type": "device_status",
+      "sims": [
+        {
+          "slot": 1,
+          "carrier": "Ethio telecom"
+        }
+      ],
+      "battery": 15,
+      "charging": false
+    },
+    {
+      "type": "incoming",
+      "ref": "in_8f2a91",
+      "from": "+251911234567",
+      "body": "STOP",
+      "receivedAt": 1761643300000,
+      "sim": 1
+    },
+    {
+      "type": "incoming",
+      "ref": "in_8f2a92",
+      "from": "+251911234568",
+      "body": "Yes, 10:00 works",
+      "receivedAt": 1761643300001
+    }
+  ]
+}
