@@ -18,6 +18,11 @@ Each release gets a section before its android-vX.Y.Z tag is pushed (the release
 Use "### New", "### Changed" and "### Fixed". A beta gets its own section ("## 1.2.0-beta.1").
 -->
 
+## 1.3.0-beta.2
+
+### Changed
+- A test build: it exists so 1.3.0-beta.1 has something to update to. Nothing else changed.
+
 ## 1.3.0-beta.1
 
 ### New
