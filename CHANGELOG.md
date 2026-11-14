@@ -18,6 +18,11 @@ Each release gets a section before its android-vX.Y.Z tag is pushed (the release
 Use "### New", "### Changed" and "### Fixed". A beta gets its own section ("## 1.2.0-beta.1").
 -->
 
+## 1.3.1 — 2026-11-14
+
+### Fixed
+- On some Samsung phones (seen on a Galaxy A55) the app closed after the SMS permission prompt. It now shows how to allow SMS instead.
+
 ## 1.3.0 — 2026-11-14
 
 ### New

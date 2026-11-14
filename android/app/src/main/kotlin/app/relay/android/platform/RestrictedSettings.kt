@@ -19,8 +19,10 @@ object RestrictedSettings {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.VANILLA_ICE_CREAM) return false
         val mode = try {
             context.getSystemService(AppOpsManager::class.java).unsafeCheckOpNoThrow(OP, Process.myUid(), context.packageName)
-        } catch (_: IllegalArgumentException) {
-            // No such op on this build: go by where the app came from.
+        } catch (_: RuntimeException) {
+            // No such op on this build (IllegalArgumentException), or the build refuses apps this check
+            // (SecurityException from AppOpsService.verifyIncomingOp, seen on Samsung): go by where the
+            // app came from. Thrown here, it crashed the permission result ("Failure delivering result").
             AppOpsManager.MODE_DEFAULT
         }
         return when (mode) {
