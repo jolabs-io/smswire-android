@@ -18,6 +18,14 @@ Each release gets a section before its android-vX.Y.Z tag is pushed (the release
 Use "### New", "### Changed" and "### Fixed". A beta gets its own section ("## 1.2.0-beta.1").
 -->
 
+## 1.3.0 — 2026-11-14
+
+### New
+- The app updates itself: when a new version is out it says so (a notification and a banner on the Gateway), shows what changed, and installs it with a tap. The gateway pauses for a moment and comes back on its own.
+- Settings → Updates: "Ask me" (the default) or "Automatic", which installs once nothing is waiting to send. It can also be changed from the dashboard.
+- Settings → App → Check for updates.
+- The send-only build updates to the send-only build.
+
 ## 1.3.0-beta.2
 
 ### Changed
