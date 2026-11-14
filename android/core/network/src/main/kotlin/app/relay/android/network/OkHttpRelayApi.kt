@@ -5,6 +5,8 @@ import app.relay.gateway.port.DeviceIdentityStore
 import app.relay.gateway.port.RelayApi
 import app.relay.gateway.port.RelayApiException
 import app.relay.gateway.port.SettingsRepository
+import app.relay.protocol.AppUpdate
+import app.relay.protocol.AppUpdateCheck
 import app.relay.protocol.ErrorResponse
 import app.relay.protocol.PairDeviceRequest
 import app.relay.protocol.PairDeviceResponse
@@ -15,6 +17,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.builtins.ListSerializer
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -26,6 +29,8 @@ class OkHttpRelayApi(
     private val client: OkHttpClient,
     private val settings: SettingsRepository,
     private val identity: DeviceIdentityStore,
+    /** The server to ask about updates before the phone is paired (and so has its own). */
+    private val fallbackServerUrl: String,
 ) : RelayApi {
 
     override suspend fun pair(serverUrl: String, code: String, name: String, model: String, phoneKey: String?): PairDeviceResponse =
@@ -41,6 +46,16 @@ class OkHttpRelayApi(
         call(path(RelayPaths.DEVICE_PROJECTS), "GET", null, ListSerializer(ProjectDto.serializer())).map { it.toProject() }
 
     override suspend fun unpair() = call<Unit>(path(RelayPaths.DEVICE_SELF), "DELETE", null, null)
+
+    override suspend fun checkUpdate(versionName: String, versionCode: Int?, sendOnly: Boolean): AppUpdate? {
+        val server = settings.current().serverUrl.ifBlank { fallbackServerUrl }.trimEnd('/')
+        val url = (server + RelayPaths.APP_UPDATE).toHttpUrl().newBuilder()
+            .addQueryParameter("versionName", versionName)
+            .apply { if (versionCode != null) addQueryParameter("versionCode", versionCode.toString()) }
+            .addQueryParameter("build", if (sendOnly) "sendOnly" else "twoWay")
+            .build()
+        return call(url.toString(), "GET", null, AppUpdateCheck.serializer(), authenticated = false).release
+    }
 
     private suspend fun path(p: String) = settings.current().serverUrl.trimEnd('/') + p
 

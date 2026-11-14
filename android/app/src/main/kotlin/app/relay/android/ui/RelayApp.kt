@@ -16,6 +16,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -57,7 +58,14 @@ import app.relay.android.feature.settings.DeviceHealthViewModel
 import app.relay.android.feature.settings.DeviceIssuesCard
 import app.relay.android.feature.settings.SettingsRoute
 import app.relay.android.feature.settings.SettingsViewModel
+import app.relay.android.feature.updates.UpdateBanner
+import app.relay.android.feature.updates.UpdateSheet
+import app.relay.android.feature.updates.UpdateViewModel
+import app.relay.android.feature.updates.WhatsNewSheet
+import app.relay.android.feature.updates.showsBanner
+import app.relay.gateway.service.CheckResult
 import app.relay.gateway.service.SwitchResult
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.combine
 
 /** Pushed screens: they cover the tab bar and go back to the tab that opened them. */
@@ -103,15 +111,19 @@ fun RelayApp(
         }
     }
     val toastMessage by container.toast.current.collectAsStateWithLifecycle()
+    // Activity-scoped: the update sheet and What's new outlive tab changes.
+    val updateVm = viewModel { UpdateViewModel(container.gateway.appUpdates) }
+    val whatsNew by updateVm.whatsNew.collectAsStateWithLifecycle()
 
     Box(Modifier.fillMaxSize().background(RelayColors.Background)) {
         when (paired) {
-            true -> GatewayShell(container, onFix, onExit, scan)
+            true -> GatewayShell(container, onFix, onExit, scan, updateVm)
             false -> PairingDestination(container, scan)
             null -> Unit
         }
         // Over pairing too: the first launch asks for SMS before the phone is paired.
         RestrictedSmsSheet(restrictedSms, onOpenAppInfo)
+        WhatsNewSheet(whatsNew?.versionName, whatsNew?.notes, onDismiss = updateVm::dismissWhatsNew)
         ToastHost(
             toastMessage,
             onExpired = container.toast::dismiss,
@@ -139,7 +151,7 @@ private fun PairingDestination(container: AppContainer, scan: Scanner) {
 
 /** Three tabs, pushed screens (which hide the tab bar), and the message sheet above everything. */
 @Composable
-private fun GatewayShell(container: AppContainer, onFix: (CheckAction) -> Unit, onExit: () -> Unit, scan: Scanner) {
+private fun GatewayShell(container: AppContainer, onFix: (CheckAction) -> Unit, onExit: () -> Unit, scan: Scanner, updateVm: UpdateViewModel) {
     val nav = rememberNavController()
     val entry by nav.currentBackStackEntryAsState()
     val route = entry?.destination?.route
@@ -165,6 +177,17 @@ private fun GatewayShell(container: AppContainer, onFix: (CheckAction) -> Unit, 
     // App-wide: the Gateway's issues card and the Settings tab's badge show the same checks.
     val healthVm = viewModel { DeviceHealthViewModel(g.settings.settings, container.deviceStatus, container.uiTicker) }
     val issues by healthVm.issues.collectAsStateWithLifecycle()
+    val update by updateVm.status.collectAsStateWithLifecycle()
+    val updateSheet by updateVm.sheetOpen.collectAsStateWithLifecycle()
+    val scope = rememberCoroutineScope()
+    // An update notification was tapped.
+    val openUpdate by container.openUpdate.collectAsStateWithLifecycle()
+    LaunchedEffect(openUpdate) {
+        if (openUpdate) {
+            container.openUpdate.value = false
+            updateVm.openSheet()
+        }
+    }
     // Fixes happen in system screens; check again when the app comes back.
     LifecycleResumeEffect(healthVm) {
         healthVm.refresh()
@@ -204,7 +227,10 @@ private fun GatewayShell(container: AppContainer, onFix: (CheckAction) -> Unit, 
                         onExit = exitConfirm::ask,
                         sendOnly = !BuildConfig.RECEIVES_SMS,
                         onOpenSettings = { nav.navigateTab(Tab.SETTINGS) },
-                        notices = { if (issues.isNotEmpty()) item(key = "issues") { DeviceIssuesCard(issues, onFix) } },
+                        notices = {
+                            if (issues.isNotEmpty()) item(key = "issues") { DeviceIssuesCard(issues, onFix) }
+                            update?.takeIf { it.showsBanner() }?.let { item(key = "update") { UpdateBanner(it, updateVm::openSheet) } }
+                        },
                         batches = { activeBatches(bulk.active, bulkVm::toggle) { nav.navigate(Routes.BATCHES) } },
                     )
                 }
@@ -222,6 +248,17 @@ private fun GatewayShell(container: AppContainer, onFix: (CheckAction) -> Unit, 
                         onCopy = copy,
                         onOpenProjects = { nav.navigate(Routes.PROJECTS) },
                         onOpenSwitch = { nav.navigate(Routes.SWITCH) },
+                        updateVersion = update?.update?.versionName,
+                        onOpenUpdate = updateVm::openSheet,
+                        onCheckUpdates = {
+                            scope.launch {
+                                when (g.appUpdates.check()) {
+                                    CheckResult.UPDATE -> updateVm.openSheet()
+                                    CheckResult.UP_TO_DATE -> toast.show("You have the newest version")
+                                    CheckResult.OFFLINE -> toast.show("Can't reach the server; try again")
+                                }
+                            }
+                        },
                         onExit = exitConfirm::ask,
                         appVersion = BuildConfig.VERSION_NAME,
                     )
@@ -268,12 +305,15 @@ private fun GatewayShell(container: AppContainer, onFix: (CheckAction) -> Unit, 
                 }
             }
             if (Tab.entries.any { it.route == route }) {
-                RelayBottomBar(route, badges = if (issues.isNotEmpty()) setOf(Tab.SETTINGS) else emptySet()) { nav.navigateTab(it) }
+                val settingsDot = issues.isNotEmpty() || update.showsBanner()
+                RelayBottomBar(route, badges = if (settingsDot) setOf(Tab.SETTINGS) else emptySet()) { nav.navigateTab(it) }
             }
         }
 
         MessageDetailSheet(detail, onDismiss = detailVm::close, onCopyId = { copy("Message ID", it) }, onRetry = detailVm::retry)
         BackHandler(enabled = detail != null, onBack = detailVm::close)
+        UpdateSheet(update, updateSheet, onInstall = updateVm::install, onLater = updateVm::later, onDismiss = updateVm::closeSheet)
+        BackHandler(enabled = updateSheet, onBack = updateVm::closeSheet)
         ExitSheet(exitConfirm, onExit)
     }
 }

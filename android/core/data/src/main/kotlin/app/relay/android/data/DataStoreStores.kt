@@ -6,14 +6,18 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import app.relay.gateway.model.DeviceIdentity
 import app.relay.gateway.model.GatewaySettings
 import app.relay.gateway.model.InboxSync
+import app.relay.gateway.model.UpdateMode
 import app.relay.gateway.model.SimPreference
 import app.relay.gateway.port.DeviceIdentityStore
+import app.relay.gateway.port.PendingUpdate
 import app.relay.gateway.port.SettingsRepository
+import app.relay.gateway.port.UpdateStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
@@ -44,6 +48,7 @@ class DataStoreSettingsRepository(context: Context) : SettingsRepository {
             startOnBoot = p[BOOT] ?: d.startOnBoot,
             onlySendWhileCharging = p[CHARGING] ?: d.onlySendWhileCharging,
             inboxSync = p[INBOX]?.let { runCatching { InboxSync.valueOf(it) }.getOrNull() } ?: d.inboxSync,
+            updateMode = p[UPDATES]?.let { runCatching { UpdateMode.valueOf(it) }.getOrNull() } ?: d.updateMode,
             serverUrl = p[SERVER] ?: d.serverUrl,
         )
     }
@@ -58,6 +63,7 @@ class DataStoreSettingsRepository(context: Context) : SettingsRepository {
         p[BOOT] = s.startOnBoot
         p[CHARGING] = s.onlySendWhileCharging
         p[INBOX] = s.inboxSync.name
+        p[UPDATES] = s.updateMode.name
         p[SERVER] = s.serverUrl
     }
 
@@ -71,6 +77,7 @@ class DataStoreSettingsRepository(context: Context) : SettingsRepository {
         val BOOT = booleanPreferencesKey("start_on_boot")
         val CHARGING = booleanPreferencesKey("only_charging")
         val INBOX = stringPreferencesKey("inbox_sync")
+        val UPDATES = stringPreferencesKey("update_mode")
         val SERVER = stringPreferencesKey("server_url")
     }
 }
@@ -117,5 +124,70 @@ class DataStoreDeviceIdentityStore(context: Context) : DeviceIdentityStore {
         val NAME = stringPreferencesKey("device_name")
         val MODEL = stringPreferencesKey("device_model")
         val WORKSPACE = stringPreferencesKey("workspace_name")
+    }
+}
+
+/** What the updater remembers across restarts, the one an update causes included. */
+class DataStoreUpdateStore(context: Context) : UpdateStore {
+    private val store = context.applicationContext.relayPreferences
+
+    override suspend fun snoozed(): Pair<String, Long>? {
+        val p = store.data.first()
+        return p[SNOOZE_VERSION]?.let { v -> p[SNOOZE_UNTIL]?.let { v to it } }
+    }
+
+    override suspend fun snooze(versionName: String, until: Long) {
+        store.edit {
+            it[SNOOZE_VERSION] = versionName
+            it[SNOOZE_UNTIL] = until
+        }
+    }
+
+    override suspend fun installing(versionName: String, notes: String?, wasOnline: Boolean) {
+        store.edit {
+            it[PENDING_VERSION] = versionName
+            if (notes != null) it[PENDING_NOTES] = notes else it.remove(PENDING_NOTES)
+            it[PENDING_ONLINE] = wasOnline
+        }
+    }
+
+    override suspend fun pending(): PendingUpdate? {
+        val p = store.data.first()
+        return p[PENDING_VERSION]?.let { PendingUpdate(it, p[PENDING_NOTES], p[PENDING_ONLINE] ?: true) }
+    }
+
+    override suspend fun clearPending() {
+        store.edit {
+            it.remove(PENDING_VERSION)
+            it.remove(PENDING_NOTES)
+            it.remove(PENDING_ONLINE)
+        }
+    }
+
+    override suspend fun whatsNew(): Pair<String, String>? {
+        val p = store.data.first()
+        return p[WHATS_NEW_VERSION]?.let { v -> p[WHATS_NEW_NOTES]?.let { v to it } }
+    }
+
+    override suspend fun setWhatsNew(versionName: String?, notes: String?) {
+        store.edit {
+            if (versionName != null && notes != null) {
+                it[WHATS_NEW_VERSION] = versionName
+                it[WHATS_NEW_NOTES] = notes
+            } else {
+                it.remove(WHATS_NEW_VERSION)
+                it.remove(WHATS_NEW_NOTES)
+            }
+        }
+    }
+
+    private companion object {
+        val SNOOZE_VERSION = stringPreferencesKey("update_snooze_version")
+        val SNOOZE_UNTIL = longPreferencesKey("update_snooze_until")
+        val PENDING_VERSION = stringPreferencesKey("update_pending_version")
+        val PENDING_NOTES = stringPreferencesKey("update_pending_notes")
+        val PENDING_ONLINE = booleanPreferencesKey("update_pending_online")
+        val WHATS_NEW_VERSION = stringPreferencesKey("whats_new_version")
+        val WHATS_NEW_NOTES = stringPreferencesKey("whats_new_notes")
     }
 }

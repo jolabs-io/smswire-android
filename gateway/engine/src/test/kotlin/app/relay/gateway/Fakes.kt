@@ -16,6 +16,7 @@ import app.relay.gateway.port.SmsEventSource
 import app.relay.gateway.port.SmsSendException
 import app.relay.gateway.port.SmsSender
 import app.relay.gateway.port.RelayApiException
+import app.relay.protocol.AppUpdate
 import app.relay.protocol.DeviceFrame
 import app.relay.protocol.PairDeviceResponse
 import app.relay.protocol.ServerFrame
@@ -89,6 +90,16 @@ class FakeRelayApi : RelayApi {
     }
 
     override suspend fun listProjects() = projects
+
+    /** What [checkUpdate] answers; [checkFails] makes it fail as offline. */
+    var update: AppUpdate? = null
+    var checkFails = false
+    val checks = mutableListOf<Triple<String, Int?, Boolean>>()
+    override suspend fun checkUpdate(versionName: String, versionCode: Int?, sendOnly: Boolean): AppUpdate? {
+        if (checkFails) throw java.io.IOException("offline")
+        checks += Triple(versionName, versionCode, sendOnly)
+        return update
+    }
 
     var unpaired = 0
     var unpairFails = false

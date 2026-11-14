@@ -1,6 +1,7 @@
 package app.relay.android.feature.settings
 
 import app.relay.gateway.model.GatewaySettings
+import app.relay.gateway.model.UpdateMode
 import app.relay.gateway.port.SmsQuota
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -15,6 +16,7 @@ class DeviceChecksTest {
         val twoWay: Boolean = true,
         val receive: Boolean = true,
         val notifications: Boolean = true,
+        val installs: Boolean = true,
     ) : DeviceStatusProvider {
         override fun ignoresBatteryOptimisations() = battery
         override fun smsQuota() = quota
@@ -24,6 +26,7 @@ class DeviceChecksTest {
         override fun notificationsEnabled() = notifications
         override fun defaultSmsAppLiftsLimit() = false
         override fun isDefaultSmsApp() = false
+        override fun canInstallUpdates() = installs
     }
 
     private val settings = GatewaySettings(maxRatePerMinute = 30)
@@ -31,7 +34,7 @@ class DeviceChecksTest {
     @Test
     fun `a healthy phone lists every check and needs nothing`() {
         val checks = deviceChecks(FakeDevice(), settings)
-        assertEquals(listOf("Battery optimisation", "Android SMS limit", "Send SMS", "Receive SMS", "Notifications"), checks.map { it.label })
+        assertEquals(listOf("Battery optimisation", "Android SMS limit", "Send SMS", "Receive SMS", "Notifications", "Install updates"), checks.map { it.label })
         assertTrue(checks.needingAttention().isEmpty())
     }
 
@@ -59,5 +62,16 @@ class DeviceChecksTest {
         val checks = deviceChecks(FakeDevice(twoWay = false, receive = false), settings)
         assertNull(checks.firstOrNull { it.label == "Receive SMS" })
         assertTrue(checks.needingAttention().isEmpty())
+    }
+
+    @Test
+    fun `installing updates without asking matters only to automatic updates`() {
+        val ask = deviceChecks(FakeDevice(installs = false), settings).single { it.label == "Install updates" }
+        assertEquals(CheckTone.NEUTRAL, ask.tone)
+        assertEquals(CheckAction.INSTALL_UPDATES, ask.action)
+        assertTrue(deviceChecks(FakeDevice(installs = false), settings).needingAttention().isEmpty())
+
+        val auto = deviceChecks(FakeDevice(installs = false), settings.copy(updateMode = UpdateMode.AUTO))
+        assertEquals(listOf(CheckAction.INSTALL_UPDATES), auto.needingAttention().map { it.action })
     }
 }

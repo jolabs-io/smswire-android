@@ -116,6 +116,38 @@
       "settings": {
         "gatewayOnline": false
       }
+    },
+    {
+      "type": "apply_settings",
+      "settings": {
+        "updateMode": "auto"
+      }
+    },
+    {
+      "type": "app_update",
+      "release": {
+        "versionName": "1.2.0",
+        "versionCode": 260,
+        "size": 3200000,
+        "sha256": "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd",
+        "url": "/app/download/android/1.2.0",
+        "notes": "### New\n- Updates install themselves",
+        "critical": true,
+        "publishedAt": 1761643200000
+      }
+    },
+    {
+      "type": "app_update",
+      "release": {
+        "versionName": "1.1.0",
+        "size": 3050000,
+        "url": "/app/download/android/1.1.0",
+        "critical": false,
+        "publishedAt": 1761643200000
+      }
+    },
+    {
+      "type": "app_update"
     }
   ],
   "DeviceFrame": [
@@ -164,8 +196,10 @@
         "keepAlive": true,
         "startOnBoot": true,
         "onlySendWhileCharging": false,
-        "inboxSync": "replies"
-      }
+        "inboxSync": "replies",
+        "updateMode": "ask"
+      },
+      "appVersionCode": 261
     },
     {
       "type": "gateway_state",
@@ -182,7 +216,8 @@
         "keepAlive": true,
         "startOnBoot": false,
         "onlySendWhileCharging": true,
-        "inboxSync": "off"
+        "inboxSync": "off",
+        "updateMode": "auto"
       }
     },
     {
@@ -206,6 +241,19 @@
     {
       "type": "ping",
       "sentAt": 1761643200000
+    },
+    {
+      "type": "update_state",
+      "versionName": "1.2.0",
+      "state": "downloading",
+      "at": 1761643202000
+    },
+    {
+      "type": "update_state",
+      "versionName": "1.2.0",
+      "state": "failed",
+      "error": "The download didn't match its SHA-256",
+      "at": 1761643203000
     },
     {
       "type": "device_status",

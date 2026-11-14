@@ -34,6 +34,14 @@ import app.relay.gateway.port.SimCardProvider
 import app.relay.gateway.port.SmsEventSource
 import app.relay.gateway.port.SmsQuotaProvider
 import app.relay.gateway.port.SmsSender
+import app.relay.gateway.data.memory.InMemoryUpdateStore
+import app.relay.gateway.engine.UpdateSync
+import app.relay.gateway.port.AppInstaller
+import app.relay.gateway.port.NoAppInstaller
+import app.relay.gateway.port.NoUpdateNotifier
+import app.relay.gateway.port.UpdateNotifier
+import app.relay.gateway.port.UpdateStore
+import app.relay.gateway.service.AppUpdates
 import app.relay.gateway.service.BatchService
 import app.relay.gateway.service.DeviceSetup
 import app.relay.gateway.service.MessageService
@@ -43,6 +51,9 @@ import app.relay.gateway.service.WorkspaceData
 import app.relay.gateway.service.ticker
 import app.relay.sms.GsmSegmentCalculator
 import app.relay.sms.SegmentCalculator
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 
 /** Everything the gateway needs from the host platform. */
 class GatewayPorts(
@@ -59,6 +70,8 @@ class GatewayPorts(
     val power: PowerMonitor,
     val clock: Clock,
     val appVersion: String,
+    /** The build number (Android's versionCode); null where there's none. */
+    val appVersionCode: Int? = null,
     /** The platform's own send cap; none by default (e.g. on the JVM). */
     val smsQuota: SmsQuotaProvider = SmsQuotaProvider { null },
     /** Received SMS on their way to the server's inbox. */
@@ -67,6 +80,10 @@ class GatewayPorts(
     val phoneKey: String? = null,
     /** False in a build that can't receive SMS (Android's send-only build): nothing reaches the inbox. */
     val receivesSms: Boolean = true,
+    /** Installs new versions of the app; none on hosts that can't. */
+    val installer: AppInstaller = NoAppInstaller,
+    val updateNotifier: UpdateNotifier = NoUpdateNotifier,
+    val updateStore: UpdateStore = InMemoryUpdateStore(),
 )
 
 /**
@@ -80,6 +97,8 @@ class GatewayComponent(
     simSelector: SimSelector = DefaultSimSelector(ports.sims),
     extraConditions: List<SendCondition> = emptyList(),
     val segmentCalculator: SegmentCalculator = GsmSegmentCalculator,
+    /** Where app-lifetime work runs (updating the app). */
+    scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
 ) {
     private val ledger = MessageLedger(ports.messages)
     private val statusSync = StatusSync(ports.messages, ledger, ports.connection)
@@ -117,6 +136,24 @@ class GatewayComponent(
         phoneKey = ports.phoneKey,
     )
 
+    /** The update the server offers, and the steps reported back. */
+    val updateSync = UpdateSync(ports.connection, ports.clock)
+
+    val appUpdates = AppUpdates(
+        sync = updateSync,
+        api = ports.api,
+        installer = ports.installer,
+        notifier = ports.updateNotifier,
+        store = ports.updateStore,
+        settings = ports.settings,
+        messages = ports.messages,
+        clock = ports.clock,
+        scope = scope,
+        versionName = ports.appVersion,
+        versionCode = ports.appVersionCode,
+        receivesSms = ports.receivesSms,
+    )
+
     val engine = GatewayEngine(
         identityStore = ports.identity,
         settings = ports.settings,
@@ -133,8 +170,10 @@ class GatewayComponent(
         power = ports.power,
         smsQuota = ports.smsQuota,
         appVersion = ports.appVersion,
+        appVersionCode = ports.appVersionCode,
         onProjectsChanged = projectService::refresh,
         onRevoked = deviceSetup::revokedOnWeb,
+        updates = updateSync,
     )
 
     val messageService = MessageService(ports.messages, ledger, statusSync, ports.clock, dispatcher::wake)

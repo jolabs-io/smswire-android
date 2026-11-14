@@ -41,10 +41,14 @@ class GatewayEngine(
     private val power: PowerMonitor,
     private val smsQuota: SmsQuotaProvider,
     private val appVersion: String,
+    /** The build number, which the server compares with releases. */
+    private val appVersionCode: Int?,
     /** The projects this phone sends for changed on the web. */
     private val onProjectsChanged: suspend () -> Unit,
     /** The server refused the device token: the pairing it connected with is gone. */
     private val onRevoked: suspend (DeviceIdentity) -> Unit,
+    /** Where the server's app_update offers go. */
+    private val updates: UpdateSync,
 ) {
     /** Starts the gateway in [scope]; cancel the returned job to stop it. Requires a paired device. */
     fun start(scope: CoroutineScope): Job = scope.launch {
@@ -89,13 +93,14 @@ class GatewayEngine(
             ServerFrame.ProjectsChanged -> runCatching { onProjectsChanged() }
             is ServerFrame.IncomingAck -> inboundSync.onAck(frame.ref)
             is ServerFrame.ApplySettings -> remoteSettings.apply(frame.settings)
+            is ServerFrame.AppUpdateOffer -> updates.offered(frame.release)
         }
     }
 
     private suspend fun hello(): DeviceFrame.Hello {
         val p = power.state.value
         val s = remoteSettings.snapshot()
-        return DeviceFrame.Hello(s.gatewayOnline, appVersion, simInfo(), p.batteryPercent, p.charging, smsLimitPerMinute(), s)
+        return DeviceFrame.Hello(s.gatewayOnline, appVersion, simInfo(), p.batteryPercent, p.charging, smsLimitPerMinute(), s, appVersionCode)
     }
 
     private fun status(): DeviceFrame.DeviceStatus {

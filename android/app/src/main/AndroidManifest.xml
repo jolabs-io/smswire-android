@@ -10,6 +10,9 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_REMOTE_MESSAGING" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <!-- In-app updates: the app downloads its new version and installs it (silently on Android 12+ where allowed). -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <uses-permission android:name="android.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION" />
 
     <application
         android:name=".RelayApplication"
@@ -46,6 +49,9 @@
             android:exported="false"
             android:foregroundServiceType="remoteMessaging" />
 
+        <receiver
+            android:name=".platform.updates.InstallStatusReceiver"
+            android:exported="false" />
         <receiver
             android:name=".service.BootReceiver"
             android:exported="true">

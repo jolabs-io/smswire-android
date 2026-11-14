@@ -16,6 +16,8 @@ object RelayPaths {
     /** DELETE: the phone unpairs itself (revokes its own token). */
     const val DEVICE_SELF = "/v1/device"
     const val DEVICE_SOCKET = "/v1/device/connect"
+    /** GET, public: `{ release }`, the newest build for the app that asks (see [AppUpdateCheck]). */
+    const val APP_UPDATE = "/app/android-update"
 
     fun projectMessages(slug: String) = "/v1/p/$slug/messages"
     fun projectOtp(slug: String) = "/v1/p/$slug/otp"

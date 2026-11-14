@@ -13,7 +13,9 @@ import app.relay.gateway.port.DeviceIdentityStore
 import app.relay.gateway.port.InboundRepository
 import app.relay.gateway.port.MessageRepository
 import app.relay.gateway.port.ProjectRepository
+import app.relay.gateway.port.PendingUpdate
 import app.relay.gateway.port.SettingsRepository
+import app.relay.gateway.port.UpdateStore
 import app.relay.protocol.BatchStatus
 import app.relay.protocol.MessageStatus
 import kotlinx.coroutines.flow.Flow
@@ -159,4 +161,29 @@ class InMemoryInboundRepository : InboundRepository {
     }
 
     override suspend fun clear() = store.update { emptyMap() }
+}
+
+class InMemoryUpdateStore : UpdateStore {
+    private var snoozed: Pair<String, Long>? = null
+    private var pending: PendingUpdate? = null
+    private var whatsNew: Pair<String, String>? = null
+
+    override suspend fun snoozed() = snoozed
+    override suspend fun snooze(versionName: String, until: Long) {
+        snoozed = versionName to until
+    }
+
+    override suspend fun installing(versionName: String, notes: String?, wasOnline: Boolean) {
+        pending = PendingUpdate(versionName, notes, wasOnline)
+    }
+
+    override suspend fun pending() = pending
+    override suspend fun clearPending() {
+        pending = null
+    }
+
+    override suspend fun whatsNew() = whatsNew
+    override suspend fun setWhatsNew(versionName: String?, notes: String?) {
+        whatsNew = if (versionName != null && notes != null) versionName to notes else null
+    }
 }

@@ -2,6 +2,7 @@ package app.relay.gateway.port
 
 import app.relay.gateway.model.DeviceIdentity
 import app.relay.gateway.model.Project
+import app.relay.protocol.AppUpdate
 import app.relay.protocol.DeviceFrame
 import app.relay.protocol.PairDeviceResponse
 import app.relay.protocol.ServerFrame
@@ -38,4 +39,7 @@ interface RelayApi {
     suspend fun listProjects(): List<Project>
     /** Revokes this phone's token on the server, so it leaves its projects. */
     suspend fun unpair()
+
+    /** The newest build for this app (GET /app/android-update), or null when it's up to date. Needs no pairing. */
+    suspend fun checkUpdate(versionName: String, versionCode: Int?, sendOnly: Boolean): AppUpdate?
 }

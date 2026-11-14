@@ -3,6 +3,7 @@ package app.relay.gateway.engine
 import app.relay.gateway.model.GatewaySettings
 import app.relay.gateway.model.InboxSync
 import app.relay.gateway.model.SimPreference
+import app.relay.gateway.model.UpdateMode
 import app.relay.gateway.port.RelayConnection
 import app.relay.gateway.port.SettingsRepository
 import app.relay.protocol.DefaultSim
@@ -10,6 +11,7 @@ import app.relay.protocol.DeviceFrame
 import app.relay.protocol.InboxSyncMode
 import app.relay.protocol.RemoteSettings
 import app.relay.protocol.RemoteSettingsPatch
+import app.relay.protocol.UpdateMode as WireUpdateMode
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.map
@@ -53,6 +55,7 @@ private fun GatewaySettings.with(p: RemoteSettingsPatch) = copy(
     keepAlive = p.keepAlive ?: keepAlive,
     startOnBoot = p.startOnBoot ?: startOnBoot,
     onlySendWhileCharging = p.onlySendWhileCharging ?: onlySendWhileCharging,
+    updateMode = p.updateMode?.toModel() ?: updateMode,
 )
 
 private fun GatewaySettings.toRemote(receivesSms: Boolean) = RemoteSettings(
@@ -66,7 +69,18 @@ private fun GatewaySettings.toRemote(receivesSms: Boolean) = RemoteSettings(
     onlySendWhileCharging = onlySendWhileCharging,
     inboxSync = if (receivesSms) inboxSync.toWire() else InboxSyncMode.OFF,
     receivesSms = receivesSms,
+    updateMode = updateMode.toWire(),
 )
+
+private fun UpdateMode.toWire() = when (this) {
+    UpdateMode.ASK -> WireUpdateMode.ASK
+    UpdateMode.AUTO -> WireUpdateMode.AUTO
+}
+
+private fun WireUpdateMode.toModel() = when (this) {
+    WireUpdateMode.ASK -> UpdateMode.ASK
+    WireUpdateMode.AUTO -> UpdateMode.AUTO
+}
 
 private fun InboxSync.toWire() = when (this) {
     InboxSync.REPLIES -> InboxSyncMode.REPLIES

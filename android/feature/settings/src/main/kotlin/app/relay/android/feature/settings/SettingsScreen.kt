@@ -49,6 +49,7 @@ import app.relay.android.designsystem.theme.RelayType
 import app.relay.android.designsystem.theme.mono
 import app.relay.android.designsystem.theme.sans
 import app.relay.gateway.model.InboxSync
+import app.relay.gateway.model.UpdateMode
 
 @Composable
 fun SettingsRoute(
@@ -58,6 +59,12 @@ fun SettingsRoute(
     onOpenProjects: () -> Unit,
     /** Opens Switch workspace: join another workspace with its pairing code. */
     onOpenSwitch: () -> Unit,
+    /** A newer version the phone can update to; null when it's up to date. */
+    updateVersion: String?,
+    /** Opens the update sheet. */
+    onOpenUpdate: () -> Unit,
+    /** Asks the server for a newer version now. */
+    onCheckUpdates: () -> Unit,
     /** Asks to stop the gateway and close the app. */
     onExit: () -> Unit,
     appVersion: String,
@@ -77,6 +84,10 @@ fun SettingsRoute(
             onRate = viewModel::setRate,
             onRetries = viewModel::changeRetries,
             onInboxSync = viewModel::setInboxSync,
+            onUpdateMode = viewModel::setUpdateMode,
+            updateVersion = updateVersion,
+            onOpenUpdate = onOpenUpdate,
+            onCheckUpdates = onCheckUpdates,
             onToggle = viewModel::toggle,
             onCheck = {
                 when (it) {
@@ -120,6 +131,10 @@ fun SettingsScreen(
     onRate: (Int) -> Unit,
     onRetries: (Int) -> Unit,
     onInboxSync: (InboxSync) -> Unit,
+    onUpdateMode: (UpdateMode) -> Unit,
+    updateVersion: String?,
+    onOpenUpdate: () -> Unit,
+    onCheckUpdates: () -> Unit,
     onToggle: (ToggleKey) -> Unit,
     onCheck: (CheckAction) -> Unit,
     onOpenProjects: () -> Unit,
@@ -245,9 +260,33 @@ fun SettingsScreen(
             }
         }
 
+        SyncedSectionLabel("Updates")
+        RelayCard(radius = 22.dp, padding = 16.dp, spacing = 10.dp) {
+            Text("Install new versions", style = RelayType.RowTitle, color = RelayColors.Text)
+            SegmentedControl(UPDATE_OPTIONS, state.updateMode, onUpdateMode, trackColor = RelayColors.Background, textSize = 12.5f)
+            Text(
+                when (state.updateMode) {
+                    UpdateMode.ASK -> "A notification says when one is out; you choose when it installs."
+                    UpdateMode.AUTO -> "Downloads and installs once nothing is waiting to send. The gateway pauses for a moment and comes back."
+                },
+                style = RelayType.Hint,
+                color = RelayColors.Dim,
+            )
+        }
+
         SectionLabel("App", Modifier.padding(start = 4.dp, top = 10.dp))
         RelayListCard(radius = 22.dp) {
-            ListRow("Version") { MonoValue(appVersion, RelayColors.Muted) }
+            if (updateVersion != null) {
+                ListRow("Version $appVersion", subtitle = "$updateVersion is available", onClick = onOpenUpdate) {
+                    MonoValue("Update", RelayColors.Amber)
+                }
+            } else {
+                ListRow("Version") { MonoValue(appVersion, RelayColors.Muted) }
+            }
+            Hairline()
+            ListRow("Check for updates", onClick = onCheckUpdates) {
+                Icon(RelayIcons.ChevronRight, contentDescription = null, tint = RelayColors.Dim, modifier = Modifier.size(16.dp))
+            }
             Hairline()
             ListRow("Exit $app", subtitle = "Stop the gateway and close the app", onClick = onExit) {
                 MonoValue("Exit", RelayColors.Red)
@@ -359,6 +398,8 @@ private fun DangerButton(text: String, onClick: () -> Unit) {
         borderColor = RelayColors.Red.copy(alpha = 0.35f),
     )
 }
+
+private val UPDATE_OPTIONS = listOf(UpdateMode.ASK to "Ask me", UpdateMode.AUTO to "Automatic")
 
 private val INBOX_OPTIONS = listOf(InboxSync.REPLIES to "Replies", InboxSync.ALL to "All", InboxSync.OFF to "Off")
 

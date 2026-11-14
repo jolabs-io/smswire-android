@@ -6,6 +6,7 @@ import app.relay.android.designsystem.component.ToastController
 import app.relay.gateway.model.GatewaySettings
 import app.relay.gateway.model.InboxSync
 import app.relay.gateway.model.SimPreference
+import app.relay.gateway.model.UpdateMode
 import app.relay.gateway.port.SettingsRepository
 import app.relay.gateway.port.SimCardProvider
 import app.relay.gateway.port.SmsQuota
@@ -45,6 +46,9 @@ interface DeviceStatusProvider {
     fun defaultSmsAppLiftsLimit(): Boolean
 
     fun isDefaultSmsApp(): Boolean
+
+    /** "Install unknown apps" for this app: updates can install without asking Android each time. */
+    fun canInstallUpdates(): Boolean = true
 }
 
 enum class ToggleKey(val label: String, val sub: String) {
@@ -56,7 +60,7 @@ enum class ToggleKey(val label: String, val sub: String) {
 
 enum class CheckTone { OK, WARN, NEUTRAL }
 
-enum class CheckAction { BATTERY, SMS_PERMISSION, RECEIVE_SMS_PERMISSION, NOTIFICATIONS, SMS_LIMIT, DEFAULT_SMS_APP }
+enum class CheckAction { BATTERY, SMS_PERMISSION, RECEIVE_SMS_PERMISSION, NOTIFICATIONS, SMS_LIMIT, DEFAULT_SMS_APP, INSTALL_UPDATES }
 
 data class DeviceCheckUi(val label: String, val value: String, val tone: CheckTone, val action: CheckAction?)
 
@@ -83,6 +87,8 @@ data class SettingsUiState(
     val rateCap: Int? = null,
     val retries: Int = 2,
     val inboxSync: InboxSync = InboxSync.REPLIES,
+    /** How new versions of the app get installed; the web can change it too. */
+    val updateMode: UpdateMode = UpdateMode.ASK,
     /** False in the send-only build: the inbox setting is replaced by a note. */
     val receivesSms: Boolean = true,
     val toggles: List<Pair<ToggleKey, Boolean>> = emptyList(),
@@ -137,6 +143,8 @@ class SettingsViewModel(
     fun setRate(value: Int) = update { it.copy(maxRatePerMinute = value.coerceIn(GatewaySettings.MIN_RATE, GatewaySettings.MAX_RATE)) }
 
     fun setInboxSync(value: InboxSync) = update { it.copy(inboxSync = value) }
+
+    fun setUpdateMode(value: UpdateMode) = update { it.copy(updateMode = value) }
 
     fun changeRetries(delta: Int) = update { it.copy(maxRetries = (it.maxRetries + delta).coerceIn(0, GatewaySettings.MAX_RETRIES)) }
 
@@ -220,6 +228,7 @@ class SettingsViewModel(
             rateCap = limit?.takeIf { it < s.maxRatePerMinute },
             retries = s.maxRetries,
             inboxSync = s.inboxSync,
+            updateMode = s.updateMode,
             receivesSms = device.receivesSms(),
             toggles = listOf(
                 ToggleKey.DELIVERY_REPORTS to s.requestDeliveryReports,

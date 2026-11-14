@@ -7,6 +7,7 @@ import android.os.Build
 import android.provider.Settings
 import app.relay.android.data.DataStoreDeviceIdentityStore
 import app.relay.android.data.DataStoreSettingsRepository
+import app.relay.android.data.DataStoreUpdateStore
 import app.relay.android.data.RoomBatchRepository
 import app.relay.android.data.RoomInboundRepository
 import app.relay.android.data.RoomMessageRepository
@@ -17,6 +18,8 @@ import app.relay.android.network.OkHttpRelayApi
 import app.relay.android.network.OkHttpRelayConnection
 import app.relay.android.platform.AndroidClock
 import app.relay.android.platform.AndroidDeviceStatus
+import app.relay.android.platform.updates.AndroidAppInstaller
+import app.relay.android.platform.updates.UpdateNotifications
 import app.relay.android.service.GatewayService
 import app.relay.android.startup.GatewayServiceController
 import app.relay.android.startup.StartupCoordinator
@@ -53,6 +56,15 @@ class AppContainer(app: Application) {
 
     val smsResults = SmsResultTracker(clock)
 
+    /** Update notifications; also used by InstallStatusReceiver and BootReceiver. */
+    val updateNotifications = UpdateNotifications(app)
+
+    /** Whether one of the app's screens is showing (set by MainActivity). */
+    @Volatile var inForeground = false
+
+    /** An update notification was tapped: the update sheet opens. */
+    val openUpdate = MutableStateFlow(false)
+
     /** The relay socket; [NetworkWatcher] reconnects it when the network changes. */
     val connection = OkHttpRelayConnection(http, clock, scope)
 
@@ -64,21 +76,27 @@ class AppContainer(app: Application) {
             settings = settings,
             identity = identity,
             connection = connection,
-            api = OkHttpRelayApi(http, settings, identity),
+            api = OkHttpRelayApi(http, settings, identity, BuildConfig.DEFAULT_SERVER_URL),
             sender = AndroidSmsSender(app, sims, smsResults),
             smsEvents = smsResults,
             sims = sims,
             power = AndroidPowerMonitor(app),
             clock = clock,
             appVersion = BuildConfig.VERSION_NAME,
+            appVersionCode = BuildConfig.VERSION_CODE,
             smsQuota = AndroidSmsQuota(app),
             phoneKey = phoneKey(app),
             inbound = RoomInboundRepository(database.incoming()),
             receivesSms = BuildConfig.RECEIVES_SMS,
+            installer = AndroidAppInstaller(app, http, settings, BuildConfig.DEFAULT_SERVER_URL),
+            updateNotifier = updateNotifications,
+            updateStore = DataStoreUpdateStore(app),
         ),
+        scope = scope,
     )
 
     init {
+        gateway.appUpdates.start()
         // Received SMS go to the web inbox (stored first, so nothing is lost while offline).
         IncomingSmsSink.handler = { sms ->
             val slot = sms.subscriptionId?.let { id -> sims.available().firstOrNull { it.subscriptionId == id }?.slot }

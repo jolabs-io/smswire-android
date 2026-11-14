@@ -43,6 +43,15 @@ enum class InboxSyncMode {
     @SerialName("off") OFF,
 }
 
+/** How the phone takes a new version of the app. */
+@Serializable
+enum class UpdateMode {
+    /** Notify, and install when the user taps. */
+    @SerialName("ask") ASK,
+    /** Download, then install once nothing is sending. */
+    @SerialName("auto") AUTO,
+}
+
 /** The phone's own send settings, which the web can change too. The server URL stays on the phone. */
 @Serializable
 data class RemoteSettings(
@@ -59,6 +68,7 @@ data class RemoteSettings(
     val inboxSync: InboxSyncMode = InboxSyncMode.REPLIES,
     /** Reported only: false from the send-only build, which can't receive SMS (no replies or STOP). */
     val receivesSms: Boolean? = null,
+    val updateMode: UpdateMode = UpdateMode.ASK,
 )
 
 /** Settings changed on the web; null fields stay as they are. */
@@ -72,7 +82,42 @@ data class RemoteSettingsPatch(
     val keepAlive: Boolean? = null,
     val startOnBoot: Boolean? = null,
     val onlySendWhileCharging: Boolean? = null,
+    val updateMode: UpdateMode? = null,
 )
+
+/** A newer build of the app for this phone. */
+@Serializable
+data class AppUpdate(
+    val versionName: String,
+    /** The build number Android compares; null for releases made before it was published. */
+    val versionCode: Int? = null,
+    /** Bytes. */
+    val size: Long,
+    /** Of the .apk, checked before installing. */
+    val sha256: String? = null,
+    /** The .apk, relative to the server URL. */
+    val url: String,
+    /** What changed: the release's changelog section. */
+    val notes: String? = null,
+    /** Older than a release marked critical: update right away. */
+    val critical: Boolean,
+    val publishedAt: Long,
+)
+
+/** GET /app/android-update's answer: null when the app is up to date. */
+@Serializable
+data class AppUpdateCheck(val release: AppUpdate? = null)
+
+/** Where the phone is with an update. */
+@Serializable
+enum class UpdateStep {
+    @SerialName("available") AVAILABLE,
+    @SerialName("downloading") DOWNLOADING,
+    /** Downloaded and checked: waiting for a tap, or for the gateway to be idle. */
+    @SerialName("ready") READY,
+    @SerialName("installing") INSTALLING,
+    @SerialName("failed") FAILED,
+}
 
 @Serializable
 sealed interface ServerFrame {
@@ -120,6 +165,10 @@ sealed interface ServerFrame {
     /** Settings changed on the web: apply them and report back with [DeviceFrame.Settings]. */
     @Serializable @SerialName("apply_settings")
     data class ApplySettings(val settings: RemoteSettingsPatch) : ServerFrame
+
+    /** After the hello and when a release comes out: the build to update to, or null when up to date. */
+    @Serializable @SerialName("app_update")
+    data class AppUpdateOffer(val release: AppUpdate?) : ServerFrame
 }
 
 @Serializable
@@ -134,6 +183,8 @@ sealed interface DeviceFrame {
         /** Android's cap on SMS parts per minute for this app; null when exempt. */
         val smsLimitPerMinute: Int? = null,
         val settings: RemoteSettings? = null,
+        /** The build number (BuildConfig.VERSION_CODE). */
+        val appVersionCode: Int? = null,
     ) : DeviceFrame
 
     /** SIMs, power or the SMS limit changed since the hello. */
@@ -165,6 +216,15 @@ sealed interface DeviceFrame {
 
     @Serializable @SerialName("ping")
     data class Ping(val sentAt: Long) : DeviceFrame
+
+    /** A step of updating to [versionName]; [error] says why it failed. */
+    @Serializable @SerialName("update_state")
+    data class UpdateState(
+        val versionName: String,
+        val state: UpdateStep,
+        val error: String? = null,
+        val at: Long,
+    ) : DeviceFrame
 
     /**
      * An SMS this phone received. Sent until acked; [ref] is the phone's own id for it, so

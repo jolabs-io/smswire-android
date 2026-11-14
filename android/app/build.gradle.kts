@@ -11,7 +11,8 @@ plugins {
 val brand = JsonSlurper().parse(rootProject.file("packages/brand/brand.json")) as Map<String, Any?>
 
 // Each build is numbered by its commit, so the dashboard ("app 1.0.83") shows which one a phone runs.
-val buildNumber = runCatching {
+// The commit count; -Prelay.versionCode=N overrides it to try an update between two local builds.
+val buildNumber = providers.gradleProperty("relay.versionCode").orNull?.toInt() ?: runCatching {
     providers.exec { commandLine("git", "rev-list", "--count", "HEAD") }.standardOutput.asText.get().trim().toInt()
 }.getOrDefault(1)
 
@@ -129,6 +130,7 @@ dependencies {
     implementation(projects.android.feature.projects)
     implementation(projects.android.feature.settings)
     implementation(projects.android.feature.pairing)
+    implementation(projects.android.feature.updates)
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)

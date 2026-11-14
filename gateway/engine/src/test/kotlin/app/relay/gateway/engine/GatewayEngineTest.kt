@@ -24,12 +24,14 @@ import app.relay.protocol.BatchDto
 import app.relay.protocol.BatchSource
 import app.relay.protocol.BatchStatus
 import app.relay.protocol.DefaultSim
+import app.relay.protocol.AppUpdate
 import app.relay.protocol.DeviceFrame
 import app.relay.protocol.MessageStatus
 import app.relay.protocol.MessageType
 import app.relay.protocol.RemoteSettings
 import app.relay.protocol.RemoteSettingsPatch
 import app.relay.protocol.SimInfo
+import app.relay.protocol.UpdateMode
 import app.relay.protocol.ServerFrame
 import app.relay.protocol.SmsJob
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -71,6 +73,7 @@ class GatewayEngineTest {
                 clock = FakeClock { scope.testScheduler.currentTime },
                 appVersion = "test",
                 receivesSms = receivesSms,
+                appVersionCode = 7,
             ),
         )
 
@@ -113,9 +116,19 @@ class GatewayEngineTest {
                     onlySendWhileCharging = false,
                     receivesSms = true,
                 ),
+                appVersionCode = 7,
             ),
             h.connection.sent.first(),
         )
+    }
+
+    @Test
+    fun `the update mode can be changed from the web`() = runTest {
+        val h = Harness(this)
+        h.connection.frames.emit(ServerFrame.ApplySettings(RemoteSettingsPatch(updateMode = UpdateMode.AUTO)))
+        runCurrent()
+        assertEquals(app.relay.gateway.model.UpdateMode.AUTO, h.settingsRepo.current().updateMode)
+        assertEquals(UpdateMode.AUTO, h.connection.sent.filterIsInstance<DeviceFrame.Settings>().last().settings.updateMode)
     }
 
     @Test
@@ -319,6 +332,18 @@ class GatewayEngineTest {
         h.connection.frames.tryEmit(ServerFrame.ProjectsChanged)
         runCurrent()
         assertEquals("From the web", h.projects.find("p9")?.name)
+    }
+
+    @Test
+    fun `the server's update offer reaches the updater`() = runTest {
+        val h = Harness(this)
+        val release = AppUpdate("1.4.0", 310, 3_000_000, null, "/app/download/android/1.4.0", null, critical = false, publishedAt = 0)
+        h.connection.frames.tryEmit(ServerFrame.AppUpdateOffer(release))
+        runCurrent()
+        assertEquals(release, h.component.updateSync.offer.value)
+        h.connection.frames.tryEmit(ServerFrame.AppUpdateOffer(null))
+        runCurrent()
+        assertEquals(null, h.component.updateSync.offer.value)
     }
 
     @Test

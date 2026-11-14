@@ -15,6 +15,14 @@ enum class InboxSync {
     OFF,
 }
 
+/** How a new version of the app gets installed. The web can change it too. */
+enum class UpdateMode {
+    /** Notify; install when the user taps. */
+    ASK,
+    /** Download, then install once nothing is sending (silently where Android allows it). */
+    AUTO,
+}
+
 data class GatewaySettings(
     /** User-facing on/off switch. Off = the server holds new requests and nothing is sent. */
     val gatewayOnline: Boolean = true,
@@ -26,6 +34,7 @@ data class GatewaySettings(
     val startOnBoot: Boolean = true,
     val onlySendWhileCharging: Boolean = false,
     val inboxSync: InboxSync = InboxSync.REPLIES,
+    val updateMode: UpdateMode = UpdateMode.ASK,
     /** The relay server this phone pairs with; empty until paired (the app suggests its build's default). */
     val serverUrl: String = "",
 ) {

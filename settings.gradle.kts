@@ -56,5 +56,6 @@ if (includeAndroid) {
         ":android:feature:projects",
         ":android:feature:settings",
         ":android:feature:pairing",
+        ":android:feature:updates",
     )
 }

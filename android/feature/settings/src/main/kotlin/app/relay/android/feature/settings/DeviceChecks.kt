@@ -2,6 +2,7 @@ package app.relay.android.feature.settings
 
 import app.relay.android.designsystem.format.Format
 import app.relay.gateway.model.GatewaySettings
+import app.relay.gateway.model.UpdateMode
 
 /** Android's cap on outgoing SMS as parts a minute; null when this app is exempt. */
 fun smsLimitPerMinute(device: DeviceStatusProvider): Int? =
@@ -29,6 +30,15 @@ fun deviceChecks(device: DeviceStatusProvider, s: GatewaySettings, limit: Int? =
     },
     device.notificationsEnabled().let { ok ->
         DeviceCheckUi("Notifications", if (ok) "On" else "Off", if (ok) CheckTone.OK else CheckTone.WARN, if (ok) null else CheckAction.NOTIFICATIONS)
+    },
+    // Without it every update asks Android first; automatic updates need it to install on their own.
+    device.canInstallUpdates().let { ok ->
+        val tone = when {
+            ok -> CheckTone.OK
+            s.updateMode == UpdateMode.AUTO -> CheckTone.WARN
+            else -> CheckTone.NEUTRAL
+        }
+        DeviceCheckUi("Install updates", if (ok) "Allowed" else "Asks each time", tone, if (ok) null else CheckAction.INSTALL_UPDATES)
     },
 )
 

@@ -45,4 +45,6 @@ class AndroidDeviceStatus(
     override fun defaultSmsAppLiftsLimit(): Boolean = receivesSms && DefaultSmsApp.liftsLimit()
 
     override fun isDefaultSmsApp(): Boolean = receivesSms && DefaultSmsApp.isHeld(context)
+
+    override fun canInstallUpdates(): Boolean = context.packageManager.canRequestPackageInstalls()
 }

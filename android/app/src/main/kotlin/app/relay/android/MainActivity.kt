@@ -18,6 +18,7 @@ import app.relay.android.designsystem.theme.LocalAppName
 import app.relay.android.designsystem.theme.RelayTheme
 import app.relay.android.feature.settings.CheckAction
 import app.relay.android.platform.RestrictedSettings
+import app.relay.android.platform.updates.UpdateNotifications
 import app.relay.android.service.AppExit
 import app.relay.android.telephony.DefaultSmsApp
 import app.relay.android.ui.RelayApp
@@ -25,6 +26,7 @@ import app.relay.android.ui.RestrictedSmsState
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
 import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     private val container get() = (application as RelayApplication).container
@@ -87,7 +89,10 @@ class MainActivity : ComponentActivity() {
         }
         requestMissingPermissions()
         container.startup.start()
+        // Opened right after an update this app installed: resume the gateway, show what's new.
+        container.scope.launch { container.gateway.appUpdates.finishUpdate() }
         takePairingLink(intent)
+        takeUpdateTap(intent)
     }
 
     // singleTask: a link opened while the app is running arrives here.
@@ -95,6 +100,12 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         takePairingLink(intent)
+        takeUpdateTap(intent)
+    }
+
+    /** An update notification was tapped: open the update sheet. */
+    private fun takeUpdateTap(intent: Intent?) {
+        if (intent?.action == UpdateNotifications.ACTION_OPEN_UPDATE) container.openUpdate.value = true
     }
 
     /** The camera app opened the web's pairing QR: the pairing screen fills the server and code from it. */
@@ -105,6 +116,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
+        container.inForeground = true
         container.startup.onForeground()
         // Back from App info with SMS allowed: the help has done its job.
         if (smsGranted()) restrictedSms.dismiss()
@@ -117,6 +129,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onStop() {
         super.onStop()
+        container.inForeground = false
         if (!isChangingConfigurations) container.startup.onBackground()
     }
 
@@ -193,6 +206,8 @@ class MainActivity : ComponentActivity() {
             // The send-only build has no default-SMS-app components, so Android wouldn't offer the role.
             CheckAction.DEFAULT_SMS_APP -> if (BuildConfig.RECEIVES_SMS) defaultSmsAppRequest.launch(DefaultSmsApp.intent(this))
             CheckAction.SMS_LIMIT -> Unit
+            CheckAction.INSTALL_UPDATES ->
+                runCatching { startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:$packageName"))) }
         }
     }
 
