@@ -24,38 +24,41 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import app.relay.android.designsystem.component.ScreenHeader
+import app.relay.android.designsystem.component.DetailTopBar
 import app.relay.android.designsystem.theme.RelayColors
 import app.relay.android.designsystem.theme.RelayType
 import app.relay.android.designsystem.theme.mono
 import app.relay.android.designsystem.theme.sans
 
+/** The projects this phone sends for. Opened from Settings → Workspace and the Gateway's status line. */
 @Composable
-fun ProjectsScreen(rows: List<ProjectRowUi>, onOpen: (String) -> Unit) {
-    LazyColumn(
-        Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        item { ScreenHeader("Projects") }
-        item {
-            Text(
-                "Projects are created on the web dashboard, with their API keys. This phone sends for the ones assigned to it.",
-                style = RelayType.Body,
-                color = RelayColors.Muted,
-                modifier = Modifier.padding(start = 2.dp, end = 2.dp, bottom = 4.dp),
-            )
-        }
-        items(rows, key = { it.id }) { ProjectRow(it) { onOpen(it.id) } }
-        if (rows.isEmpty()) {
+fun ProjectsScreen(rows: List<ProjectRowUi>, onBack: () -> Unit, onOpen: (String) -> Unit) {
+    Column(Modifier.fillMaxSize().background(RelayColors.Background)) {
+        DetailTopBar("Projects", onBack)
+        LazyColumn(
+            Modifier.weight(1f),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
             item {
                 Text(
-                    "No projects use this phone yet. Assign it to one on the web.",
-                    style = sans(13.5f),
-                    color = RelayColors.Dim,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 28.dp),
+                    "Projects are created on the web dashboard, with their API keys. This phone sends for the ones assigned to it.",
+                    style = RelayType.Body,
+                    color = RelayColors.Muted,
+                    modifier = Modifier.padding(start = 2.dp, end = 2.dp, bottom = 4.dp),
                 )
+            }
+            items(rows, key = { it.id }) { ProjectRow(it) { onOpen(it.id) } }
+            if (rows.isEmpty()) {
+                item {
+                    Text(
+                        "No projects use this phone yet. Assign it to one on the web.",
+                        style = sans(13.5f),
+                        color = RelayColors.Dim,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 28.dp),
+                    )
+                }
             }
         }
     }

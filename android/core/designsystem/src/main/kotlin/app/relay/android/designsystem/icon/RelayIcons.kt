@@ -24,7 +24,6 @@ object RelayIcons {
         )
     }.build()
 
-    val Settings = stroke("settings", 1.75f, "M4 7h9M18 7h2M4 17h3M12 17h8", circle(15.5f, 7f, 2.5f), circle(9.5f, 17f, 2.5f))
     val ChevronRight = stroke("chevron_right", 2f, "M9 6l6 6-6 6")
     val Back = stroke("back", 2f, "M15 5l-7 7 7 7")
     val Search = stroke("search", 1.9f, circle(11f, 11f, 7f), "M20 20l-4-4")
@@ -44,6 +43,11 @@ object RelayIcons {
     val Check = stroke("check", 2.4f, "M5 12.5l4.5 4.5L19 7.5")
     val Power = stroke("power", 2f, "M12 3v9", "M17.66 7.34a8 8 0 1 1-11.32 0")
     val Scan = stroke("scan", 1.9f, "M4 8V5h3M17 5h3v3M20 16v3h-3M7 19H4v-3", "M7 12h10")
+    val Alert = stroke(
+        "alert", 1.9f,
+        "M10.27 4.5L2.6 17.8A2.1 2.1 0 0 0 4.4 21h15.2a2.1 2.1 0 0 0 1.8-3.2L13.73 4.5a2 2 0 0 0-3.46 0z",
+        "M12 9.5v4M12 17.2v.01",
+    )
 
     val TabGateway = stroke(
         "tab_gateway", 1.8f,
@@ -51,12 +55,7 @@ object RelayIcons {
         "M8.5 8.5a5 5 0 0 0 0 7M15.5 8.5a5 5 0 0 1 0 7M5.6 5.6a9 9 0 0 0 0 12.8M18.4 5.6a9 9 0 0 1 0 12.8",
     )
     val TabMessages = stroke("tab_messages", 1.8f, "M4 5h16v11H9l-5 4z", "M8 9.5h8M8 12.5h5")
-    val TabBulk = stroke("tab_bulk", 1.8f, "M12 3l9 5-9 5-9-5z", "M3 12.5l9 5 9-5M3 17l9 5 9-5")
-    val TabProjects = stroke(
-        "tab_projects", 1.8f,
-        circle(8f, 15f, 4f),
-        "M11 12l8.5-8.5M16.5 6.5l2.5 2.5M14.5 8.5l1.8 1.8",
-    )
+    val TabSettings = stroke("tab_settings", 1.8f, "M4 7h9M18 7h2M4 17h3M12 17h8", circle(15.5f, 7f, 2.5f), circle(9.5f, 17f, 2.5f))
 
     private fun builder(name: String) = ImageVector.Builder(
         name = name,

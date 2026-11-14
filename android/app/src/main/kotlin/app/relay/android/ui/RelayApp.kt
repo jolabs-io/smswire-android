@@ -23,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
@@ -36,6 +37,7 @@ import app.relay.android.designsystem.component.ToastHost
 import app.relay.android.designsystem.theme.RelayColors
 import app.relay.android.feature.bulk.BulkRoute
 import app.relay.android.feature.bulk.BulkViewModel
+import app.relay.android.feature.bulk.activeBatches
 import app.relay.android.feature.gateway.GatewayRoute
 import app.relay.android.feature.gateway.GatewayViewModel
 import app.relay.android.feature.messages.MessageDetailSheet
@@ -44,18 +46,26 @@ import app.relay.android.feature.messages.MessagesRoute
 import app.relay.android.feature.messages.MessagesViewModel
 import app.relay.android.feature.pairing.PairingRoute
 import app.relay.android.feature.pairing.PairingViewModel
+import app.relay.android.feature.pairing.SwitchWorkspaceRoute
+import app.relay.android.feature.pairing.SwitchWorkspaceViewModel
 import app.relay.android.feature.projects.ProjectDetailRoute
 import app.relay.android.feature.projects.ProjectDetailViewModel
 import app.relay.android.feature.projects.ProjectsScreen
 import app.relay.android.feature.projects.ProjectsViewModel
 import app.relay.android.feature.settings.CheckAction
+import app.relay.android.feature.settings.DeviceHealthViewModel
+import app.relay.android.feature.settings.DeviceIssuesCard
 import app.relay.android.feature.settings.SettingsRoute
 import app.relay.android.feature.settings.SettingsViewModel
-import kotlinx.coroutines.flow.map
+import app.relay.gateway.service.SwitchResult
+import kotlinx.coroutines.flow.combine
 
+/** Pushed screens: they cover the tab bar and go back to the tab that opened them. */
 private object Routes {
-    const val SETTINGS = "settings"
+    const val PROJECTS = "projects"
     const val PROJECT = "project/{id}"
+    const val BATCHES = "batches"
+    const val SWITCH = "switch"
     fun project(id: String) = "project/$id"
 }
 
@@ -77,7 +87,9 @@ fun RelayApp(
     onOpenAppInfo: () -> Unit,
     onPaired: () -> Unit,
 ) {
-    val paired by remember { container.gateway.deviceSetup.identity.map { it != null } }
+    val setup = container.gateway.deviceSetup
+    // Mid-switch the phone is briefly without a pairing, but it isn't unpaired.
+    val paired by remember { combine(setup.identity, setup.switching) { identity, switching -> identity != null || switching } }
         .collectAsStateWithLifecycle(initialValue = null)
     var sawPairing by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(paired) {
@@ -91,17 +103,10 @@ fun RelayApp(
         }
     }
     val toastMessage by container.toast.current.collectAsStateWithLifecycle()
-    val pairingLink by container.pairingLinks.collectAsStateWithLifecycle()
-    LaunchedEffect(paired, pairingLink) {
-        if (paired == true && pairingLink != null) {
-            container.pairingLinks.value = null
-            container.toast.show("This phone is already paired. Unpair it in Settings to join another workspace.")
-        }
-    }
 
     Box(Modifier.fillMaxSize().background(RelayColors.Background)) {
         when (paired) {
-            true -> GatewayShell(container, onFix, onExit)
+            true -> GatewayShell(container, onFix, onExit, scan)
             false -> PairingDestination(container, scan)
             null -> Unit
         }
@@ -128,13 +133,13 @@ private fun PairingDestination(container: AppContainer, scan: Scanner) {
         }
     }
     Box(Modifier.fillMaxSize().systemBarsPadding()) {
-        PairingRoute(vm, onScan = { scan(vm::onScanned, vm::onScanFailed) })
+        PairingRoute(vm, onScan = { scan(vm::onScanned, vm::onScanFailed) }, sendOnly = !BuildConfig.RECEIVES_SMS)
     }
 }
 
-/** Four tabs, pushed detail screens (which hide the tab bar), and the message sheet above everything. */
+/** Three tabs, pushed screens (which hide the tab bar), and the message sheet above everything. */
 @Composable
-private fun GatewayShell(container: AppContainer, onFix: (CheckAction) -> Unit, onExit: () -> Unit) {
+private fun GatewayShell(container: AppContainer, onFix: (CheckAction) -> Unit, onExit: () -> Unit, scan: Scanner) {
     val nav = rememberNavController()
     val entry by nav.currentBackStackEntryAsState()
     val route = entry?.destination?.route
@@ -146,11 +151,25 @@ private fun GatewayShell(container: AppContainer, onFix: (CheckAction) -> Unit, 
         toast.show("$label copied")
     }
 
+    // A pairing QR opened while paired (from the camera app): offer to move to that workspace.
+    val pairingLink by container.pairingLinks.collectAsStateWithLifecycle()
+    LaunchedEffect(pairingLink) {
+        if (pairingLink != null && nav.currentDestination?.route != Routes.SWITCH) nav.navigate(Routes.SWITCH)
+    }
+
     // Activity-scoped: the sheet floats above whichever screen is showing.
     val detailVm = viewModel { MessageDetailViewModel(g.messageService, g.projectService, g.settings.settings, g.segmentCalculator, toast) }
     val detail by detailVm.state.collectAsStateWithLifecycle()
     // Shell-level so the confirmation covers the tab bar too.
     val exitConfirm = rememberExitConfirm()
+    // App-wide: the Gateway's issues card and the Settings tab's badge show the same checks.
+    val healthVm = viewModel { DeviceHealthViewModel(g.settings.settings, container.deviceStatus, container.uiTicker) }
+    val issues by healthVm.issues.collectAsStateWithLifecycle()
+    // Fixes happen in system screens; check again when the app comes back.
+    LifecycleResumeEffect(healthVm) {
+        healthVm.refresh()
+        onPauseOrDispose {}
+    }
 
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize().systemBarsPadding()) {
@@ -162,6 +181,8 @@ private fun GatewayShell(container: AppContainer, onFix: (CheckAction) -> Unit, 
                 exitTransition = { fadeOut(tween(150)) },
             ) {
                 composable(Tab.GATEWAY.route) {
+                    val bulkVm = viewModel { BulkViewModel(g.batchService, g.projectService, container.clock::now, container.uiTicker) }
+                    val bulk by bulkVm.state.collectAsStateWithLifecycle()
                     GatewayRoute(
                         viewModel = viewModel {
                             GatewayViewModel(
@@ -177,25 +198,65 @@ private fun GatewayShell(container: AppContainer, onFix: (CheckAction) -> Unit, 
                                 ticker = container.uiTicker,
                             )
                         },
-                        onOpenSettings = { nav.navigate(Routes.SETTINGS) },
                         onOpenMessages = { nav.navigateTab(Tab.MESSAGES) },
                         onOpenMessage = detailVm::open,
+                        onOpenProjects = { nav.navigate(Routes.PROJECTS) },
                         onExit = exitConfirm::ask,
+                        sendOnly = !BuildConfig.RECEIVES_SMS,
+                        onOpenSettings = { nav.navigateTab(Tab.SETTINGS) },
+                        notices = { if (issues.isNotEmpty()) item(key = "issues") { DeviceIssuesCard(issues, onFix) } },
+                        batches = { activeBatches(bulk.active, bulkVm::toggle) { nav.navigate(Routes.BATCHES) } },
                     )
                 }
                 composable(Tab.MESSAGES.route) {
                     MessagesRoute(
                         viewModel { MessagesViewModel(g.messageService, g.projectService, container.clock, container.uiTicker) },
                         onOpenMessage = detailVm::open,
+                        onOpenBatches = { nav.navigate(Routes.BATCHES) },
                     )
                 }
-                composable(Tab.BULK.route) {
-                    BulkRoute(viewModel { BulkViewModel(g.batchService, g.projectService, container.clock::now, container.uiTicker) })
+                composable(Tab.SETTINGS.route) {
+                    SettingsRoute(
+                        viewModel { SettingsViewModel(g.settings, g.deviceSetup, g.sims, container.deviceStatus, toast, g.projectService, container.uiTicker) },
+                        onFix = onFix,
+                        onCopy = copy,
+                        onOpenProjects = { nav.navigate(Routes.PROJECTS) },
+                        onOpenSwitch = { nav.navigate(Routes.SWITCH) },
+                        onExit = exitConfirm::ask,
+                        appVersion = BuildConfig.VERSION_NAME,
+                    )
                 }
-                composable(Tab.PROJECTS.route) {
+                composable(Routes.SWITCH) {
+                    val switchVm = viewModel {
+                        SwitchWorkspaceViewModel(g.deviceSetup, g.settings, container.defaultServerUrl, container.deviceName, container.deviceModel)
+                    }
+                    LaunchedEffect(pairingLink) {
+                        pairingLink?.let {
+                            container.pairingLinks.value = null
+                            switchVm.onScanned(it)
+                        }
+                    }
+                    SwitchWorkspaceRoute(
+                        switchVm,
+                        onScan = { scan(switchVm::onScanned, switchVm::onScanFailed) },
+                        onBack = { nav.popBackStack() },
+                        onSwitched = { result ->
+                            // Not saved: the Settings tab opens fresh, not on this screen.
+                            nav.popBackStack(Tab.GATEWAY.route, inclusive = false)
+                            toast.show(switchedMessage(result))
+                        },
+                    )
+                }
+                composable(Routes.BATCHES) {
+                    BulkRoute(
+                        viewModel { BulkViewModel(g.batchService, g.projectService, container.clock::now, container.uiTicker) },
+                        onBack = { nav.popBackStack() },
+                    )
+                }
+                composable(Routes.PROJECTS) {
                     val projectsVm = viewModel { ProjectsViewModel(g.projectService) }
                     val rows by projectsVm.rows.collectAsStateWithLifecycle()
-                    ProjectsScreen(rows, onOpen = { nav.navigate(Routes.project(it)) })
+                    ProjectsScreen(rows, onBack = { nav.popBackStack() }, onOpen = { nav.navigate(Routes.project(it)) })
                 }
                 composable(Routes.PROJECT) { backStack ->
                     val id = checkNotNull(backStack.arguments?.getString("id"))
@@ -205,19 +266,9 @@ private fun GatewayShell(container: AppContainer, onFix: (CheckAction) -> Unit, 
                         onCopy = copy,
                     )
                 }
-                composable(Routes.SETTINGS) {
-                    SettingsRoute(
-                        viewModel { SettingsViewModel(g.settings, g.deviceSetup, g.sims, container.deviceStatus, toast, container.uiTicker) },
-                        onBack = { nav.popBackStack() },
-                        onFix = onFix,
-                        onCopy = copy,
-                        onExit = exitConfirm::ask,
-                        appVersion = BuildConfig.VERSION_NAME,
-                    )
-                }
             }
             if (Tab.entries.any { it.route == route }) {
-                RelayBottomBar(route) { nav.navigateTab(it) }
+                RelayBottomBar(route, badges = if (issues.isNotEmpty()) setOf(Tab.SETTINGS) else emptySet()) { nav.navigateTab(it) }
             }
         }
 
@@ -225,6 +276,16 @@ private fun GatewayShell(container: AppContainer, onFix: (CheckAction) -> Unit, 
         BackHandler(enabled = detail != null, onBack = detailVm::close)
         ExitSheet(exitConfirm, onExit)
     }
+}
+
+private fun switchedMessage(result: SwitchResult) = when (result) {
+    is SwitchResult.SameWorkspace -> "Already in ${result.workspaceName}: paired again"
+    is SwitchResult.Switched ->
+        if (result.leftOld) {
+            "Now sending for ${result.workspaceName}"
+        } else {
+            "Now sending for ${result.workspaceName}. Couldn't reach the old workspace: remove this phone there on the web."
+        }
 }
 
 private fun NavHostController.navigateTab(tab: Tab) = navigate(tab.route) {

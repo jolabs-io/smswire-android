@@ -66,6 +66,15 @@ class RoomMessageRepository(private val dao: MessageDao) : MessageRepository {
     override fun observeProjectActivity(since: Long) = dao.projectActivity(since).map { rows ->
         rows.associate { it.projectId to ProjectActivity(it.today, it.deliveredToday, it.failedToday, it.lastReceivedAt) }
     }.distinctUntilChanged()
+
+    override suspend fun clearForNewWorkspace(keepHistory: Boolean) {
+        if (keepHistory) {
+            dao.deletePending()
+            dao.markAllReported()
+        } else {
+            dao.deleteAll()
+        }
+    }
 }
 
 class RoomBatchRepository(private val dao: BatchDao) : BatchRepository {
@@ -74,6 +83,7 @@ class RoomBatchRepository(private val dao: BatchDao) : BatchRepository {
     override suspend fun upsert(batch: Batch) = dao.upsert(batch.toEntity())
     override suspend fun setStatus(id: String, status: BatchStatus) = dao.setStatus(id, status.name)
     override suspend fun pausedIds() = dao.pausedIds().toSet()
+    override suspend fun clearForNewWorkspace(keepFinished: Boolean) = if (keepFinished) dao.deleteUnfinished() else dao.deleteAll()
 }
 
 class RoomProjectRepository(private val dao: ProjectDao) : ProjectRepository {
@@ -92,6 +102,8 @@ class RoomInboundRepository(private val dao: IncomingDao) : InboundRepository {
     override suspend fun unreported() = dao.unreported().map { IncomingSms(it.ref, it.sender, it.body, it.receivedAt, it.sim, it.reported) }
 
     override suspend fun markReported(ref: String) = dao.markReported(ref)
+
+    override suspend fun clear() = dao.deleteAll()
 }
 
 private fun MessageEntity.toModel() = Message(

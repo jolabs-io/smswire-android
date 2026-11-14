@@ -90,6 +90,32 @@ fun SectionLabel(text: String, modifier: Modifier = Modifier, color: Color = Rel
     Text(text.uppercase(), style = RelayType.SectionLabel, color = color, modifier = modifier)
 }
 
+/** Section label with a link to the full list on the right: "LIVE … All messages ›". */
+@Composable
+fun SectionHeaderLink(label: String, action: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Row(
+        modifier.fillMaxWidth().padding(start = 4.dp, end = 4.dp, top = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        SectionLabel(label)
+        TextLink(action, onClick)
+    }
+}
+
+/** Lime link with a chevron, for opening another screen: "All messages ›". */
+@Composable
+fun TextLink(text: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Row(
+        modifier.clickable(onClick = onClick).padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        Text(text, style = sans(13f, FontWeight.Medium), color = RelayColors.Lime)
+        Icon(RelayIcons.ChevronRight, contentDescription = null, tint = RelayColors.Lime, modifier = Modifier.size(16.dp))
+    }
+}
+
 /** Label above a value, as used in stat grids. */
 @Composable
 fun StatCell(label: String, value: String, modifier: Modifier = Modifier, valueColor: Color = RelayColors.Text, large: Boolean = false) {

@@ -39,6 +39,7 @@ import app.relay.gateway.service.DeviceSetup
 import app.relay.gateway.service.MessageService
 import app.relay.gateway.service.ProjectService
 import app.relay.gateway.service.StatsService
+import app.relay.gateway.service.WorkspaceData
 import app.relay.gateway.service.ticker
 import app.relay.sms.GsmSegmentCalculator
 import app.relay.sms.SegmentCalculator
@@ -108,7 +109,13 @@ class GatewayComponent(
 
     val controller = GatewayController(ports.settings, ports.connection, ports.clock, ports.power)
     val projectService = ProjectService(ports.projects, ports.messages, ports.api, ports.clock, uiTicker)
-    val deviceSetup = DeviceSetup(ports.identity, ports.settings, ports.api, ports.phoneKey)
+    val deviceSetup = DeviceSetup(
+        identityStore = ports.identity,
+        settings = ports.settings,
+        api = ports.api,
+        workspaceData = WorkspaceData(ports.messages, ports.batches, ports.projects, ports.inbound),
+        phoneKey = ports.phoneKey,
+    )
 
     val engine = GatewayEngine(
         identityStore = ports.identity,
@@ -127,7 +134,7 @@ class GatewayComponent(
         smsQuota = ports.smsQuota,
         appVersion = ports.appVersion,
         onProjectsChanged = projectService::refresh,
-        onRevoked = deviceSetup::forget,
+        onRevoked = deviceSetup::revokedOnWeb,
     )
 
     val messageService = MessageService(ports.messages, ledger, statusSync, ports.clock, dispatcher::wake)

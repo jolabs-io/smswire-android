@@ -1,6 +1,7 @@
 package app.relay.gateway.engine
 
 import app.relay.gateway.port.ConnectionState
+import app.relay.gateway.model.DeviceIdentity
 import app.relay.gateway.port.DeviceIdentityStore
 import app.relay.gateway.port.PowerMonitor
 import app.relay.gateway.port.RelayConnection
@@ -42,8 +43,8 @@ class GatewayEngine(
     private val appVersion: String,
     /** The projects this phone sends for changed on the web. */
     private val onProjectsChanged: suspend () -> Unit,
-    /** The server refused the device token: the pairing is gone. */
-    private val onRevoked: suspend () -> Unit,
+    /** The server refused the device token: the pairing it connected with is gone. */
+    private val onRevoked: suspend (DeviceIdentity) -> Unit,
 ) {
     /** Starts the gateway in [scope]; cancel the returned job to stop it. Requires a paired device. */
     fun start(scope: CoroutineScope): Job = scope.launch {
@@ -60,7 +61,7 @@ class GatewayEngine(
         }
         launch {
             connection.state.first { it is ConnectionState.Revoked }
-            onRevoked()
+            onRevoked(identity)
         }
         launch {
             // Every percent (and plugging in or out): a few dozen tiny frames a day, and the

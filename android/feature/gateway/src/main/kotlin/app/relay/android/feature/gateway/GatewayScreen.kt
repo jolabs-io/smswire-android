@@ -3,7 +3,6 @@ package app.relay.android.feature.gateway
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,8 +15,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -26,7 +25,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.LinkAnnotation
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLinkStyles
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withLink
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.relay.android.designsystem.component.ColorLegend
@@ -37,11 +42,14 @@ import app.relay.android.designsystem.component.PulseDot
 import app.relay.android.designsystem.component.RelayCard
 import app.relay.android.designsystem.component.RelayListCard
 import app.relay.android.designsystem.component.RelaySwitch
+import app.relay.android.designsystem.component.SectionHeaderLink
 import app.relay.android.designsystem.component.SectionLabel
+import app.relay.android.designsystem.component.SendOnlyChip
 import app.relay.android.designsystem.component.StackedBar
 import app.relay.android.designsystem.component.StatCell
 import app.relay.android.designsystem.component.SwitchSize
 import app.relay.android.designsystem.icon.RelayIcons
+import app.relay.android.designsystem.theme.LocalAppName
 import app.relay.android.designsystem.theme.RelayColors
 import app.relay.android.designsystem.theme.RelayType
 import app.relay.android.designsystem.theme.mono
@@ -50,35 +58,48 @@ import app.relay.android.designsystem.theme.sans
 @Composable
 fun GatewayRoute(
     viewModel: GatewayViewModel,
-    onOpenSettings: () -> Unit,
     onOpenMessages: () -> Unit,
     onOpenMessage: (String) -> Unit,
+    onOpenProjects: () -> Unit,
     /** Asks to stop the gateway and close the app. */
     onExit: () -> Unit,
+    /** The send-only build: a chip in the header, opening Settings where it's explained. */
+    sendOnly: Boolean = false,
+    onOpenSettings: () -> Unit = {},
+    /** Cards above the status card, such as the phone's issues. Add items only when there's something to show. */
+    notices: LazyListScope.() -> Unit = {},
+    /** Between throughput and the live feed: the running batches. */
+    batches: LazyListScope.() -> Unit = {},
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    GatewayScreen(state, viewModel::setOnline, onOpenSettings, onOpenMessages, onOpenMessage, onExit)
+    GatewayScreen(state, viewModel::setOnline, onOpenMessages, onOpenMessage, onOpenProjects, onExit, sendOnly, onOpenSettings, notices, batches)
 }
 
 @Composable
 fun GatewayScreen(
     state: GatewayUiState,
     onToggleOnline: (Boolean) -> Unit,
-    onOpenSettings: () -> Unit,
     onOpenMessages: () -> Unit,
     onOpenMessage: (String) -> Unit,
+    onOpenProjects: () -> Unit,
     onExit: () -> Unit,
+    sendOnly: Boolean = false,
+    onOpenSettings: () -> Unit = {},
+    notices: LazyListScope.() -> Unit = {},
+    batches: LazyListScope.() -> Unit = {},
 ) {
     LazyColumn(
         Modifier.fillMaxSize(),
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        item { Header(state.deviceLine, onOpenSettings, onExit) }
-        item { StatusCard(state, onToggleOnline) }
+        item { Header(state.deviceLine, sendOnly, onOpenSettings, onExit) }
+        notices()
+        item { StatusCard(state, onToggleOnline, onOpenProjects) }
         item { TodayCard(state.today) }
         item { ThroughputCard(state) }
-        item { LiveHeader(onOpenMessages) }
+        batches()
+        item { SectionHeaderLink("Live", "All messages", onOpenMessages) }
         item {
             RelayListCard {
                 state.feed.forEach { row -> FeedMessageRow(row) { onOpenMessage(row.id) } }
@@ -96,20 +117,20 @@ fun GatewayScreen(
 }
 
 @Composable
-private fun Header(deviceLine: String, onOpenSettings: () -> Unit, onExit: () -> Unit) {
+private fun Header(deviceLine: String, sendOnly: Boolean, onOpenSettings: () -> Unit, onExit: () -> Unit) {
     Row(
         Modifier.fillMaxWidth().padding(horizontal = 2.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-            Text("Relay", style = sans(24f, FontWeight.SemiBold, lineHeight = 1.05f, tracking = -0.03f), color = RelayColors.Text)
-            Text(deviceLine, style = mono(12f), color = RelayColors.Muted)
+            Text(LocalAppName.current, style = sans(24f, FontWeight.SemiBold, lineHeight = 1.05f, tracking = -0.03f), color = RelayColors.Text)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(deviceLine, style = mono(12f), color = RelayColors.Muted, modifier = Modifier.weight(1f, fill = false))
+                if (sendOnly) SendOnlyChip(onOpenSettings)
+            }
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            HeaderButton(RelayIcons.Power, "Stop and exit", onExit, tint = RelayColors.Red)
-            HeaderButton(RelayIcons.Settings, "Settings", onOpenSettings)
-        }
+        HeaderButton(RelayIcons.Power, "Stop and exit", onExit, tint = RelayColors.Red)
     }
 }
 
@@ -127,34 +148,41 @@ private fun HeaderButton(icon: ImageVector, contentDescription: String, onClick:
 }
 
 @Composable
-private fun StatusCard(state: GatewayUiState, onToggleOnline: (Boolean) -> Unit) {
+private fun StatusCard(state: GatewayUiState, onToggleOnline: (Boolean) -> Unit, onOpenProjects: () -> Unit) {
     val (color, label, title, sub) = when (state.mode) {
         GatewayMode.ONLINE -> Quad(
             RelayColors.Lime,
             "ONLINE",
             "Gateway is live",
-            "Listening for ${state.enabledProjects} project${if (state.enabledProjects == 1) "" else "s"}. " +
-                "Up ${state.uptime ?: "0m"} on ${state.server}.",
+            buildAnnotatedString {
+                append("Listening for ")
+                withLink(LinkAnnotation.Clickable("projects", TextLinkStyles(SpanStyle(color = RelayColors.Lime, fontWeight = FontWeight.Medium))) { onOpenProjects() }) {
+                    append("${state.enabledProjects} project${if (state.enabledProjects == 1) "" else "s"}")
+                }
+                append(". Up ${state.uptime ?: "0m"} on ${state.server}.")
+            },
         )
         GatewayMode.CONNECTING -> Quad(
             RelayColors.Blue,
             "CONNECTING",
             "Reconnecting…",
-            "Requests wait on ${state.server} until the phone is back online.",
+            AnnotatedString("Requests wait on ${state.server} until the phone is back online."),
         )
         GatewayMode.ON_BATTERY -> Quad(
             RelayColors.Amber,
             "ON BATTERY",
             "Waiting for charger",
-            "Only send while charging is on. " +
-                (if (state.inQueue > 0) "${state.inQueue} queued message${if (state.inQueue == 1) "" else "s"} send" else "Requests send") +
-                " when the phone is plugged in.",
+            AnnotatedString(
+                "Only send while charging is on. " +
+                    (if (state.inQueue > 0) "${state.inQueue} queued message${if (state.inQueue == 1) "" else "s"} send" else "Requests send") +
+                    " when the phone is plugged in.",
+            ),
         )
         GatewayMode.PAUSED -> Quad(
             RelayColors.Amber,
             "PAUSED",
             "Gateway paused",
-            "New requests are held on the server and send when you resume.",
+            AnnotatedString("New requests are held on the server and send when you resume."),
         )
     }
     RelayCard {
@@ -251,23 +279,4 @@ private fun ThroughputCard(state: GatewayUiState) {
     }
 }
 
-@Composable
-private fun LiveHeader(onOpenMessages: () -> Unit) {
-    Row(
-        Modifier.fillMaxWidth().padding(start = 4.dp, end = 4.dp, top = 4.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        SectionLabel("Live")
-        Row(
-            Modifier.clickable(onClick = onOpenMessages).padding(vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(2.dp),
-        ) {
-            Text("All messages", style = sans(13f, FontWeight.Medium), color = RelayColors.Lime)
-            Icon(RelayIcons.ChevronRight, contentDescription = null, tint = RelayColors.Lime, modifier = Modifier.size(16.dp))
-        }
-    }
-}
-
-private data class Quad(val color: Color, val label: String, val title: String, val sub: String)
+private data class Quad(val color: Color, val label: String, val title: String, val sub: AnnotatedString)

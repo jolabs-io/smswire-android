@@ -19,6 +19,8 @@ import app.relay.android.platform.NetworkWatcher
 import app.relay.gateway.engine.GatewayStatus
 import app.relay.gateway.port.ConnectionState
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -44,13 +46,17 @@ class GatewayService : LifecycleService() {
 
         val container = (application as RelayApplication).container
         val gateway = container.gateway
-        lifecycleScope.launch {
+        engine = lifecycleScope.launch {
             if (gateway.deviceSetup.current() == null) {
                 stopSelf()
                 return@launch
             }
-            engine = gateway.engine.start(lifecycleScope)
             network = NetworkWatcher(this@GatewayService, container.connection::reconnectNow).also { it.start() }
+            // One engine per pairing: switching workspace (or pairing again) swaps in a new token,
+            // which needs a fresh engine and socket. Unpaired, StartupCoordinator stops the service.
+            gateway.deviceSetup.identity.distinctUntilChanged().collectLatest { identity ->
+                if (identity != null) coroutineScope { gateway.engine.start(this) }
+            }
         }
         statusUpdates = lifecycleScope.launch {
             gateway.controller.status.map(::describe).distinctUntilChanged().collect { text ->

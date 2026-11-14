@@ -85,6 +85,16 @@ interface MessageDao {
         """,
     )
     fun projectActivity(since: Long): Flow<List<ProjectActivityRow>>
+
+    @Query("DELETE FROM messages WHERE status IN ('QUEUED', 'SENDING')")
+    suspend fun deletePending()
+
+    /** Nothing left for the server: kept history mustn't reach the next workspace. */
+    @Query("UPDATE messages SET reportedStatus = status")
+    suspend fun markAllReported()
+
+    @Query("DELETE FROM messages")
+    suspend fun deleteAll()
 }
 
 @Dao
@@ -103,6 +113,12 @@ interface BatchDao {
 
     @Query("SELECT id FROM batches WHERE status = 'PAUSED'")
     suspend fun pausedIds(): List<String>
+
+    @Query("DELETE FROM batches WHERE status != 'DONE'")
+    suspend fun deleteUnfinished()
+
+    @Query("DELETE FROM batches")
+    suspend fun deleteAll()
 }
 
 @Dao
@@ -147,4 +163,7 @@ interface IncomingDao {
 
     @Query("UPDATE incoming SET reported = 1 WHERE ref = :ref")
     suspend fun markReported(ref: String)
+
+    @Query("DELETE FROM incoming")
+    suspend fun deleteAll()
 }

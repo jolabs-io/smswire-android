@@ -75,18 +75,28 @@ class FakeRelayApi : RelayApi {
     var projects = listOf(project("p1", "Shop"))
 
     override suspend fun pair(serverUrl: String, code: String, name: String, model: String, phoneKey: String?): PairDeviceResponse {
-        if (code != "GOOD-CODE") throw RelayApiException(400, "That code is wrong or has expired")
+        val response = when (code) {
+            "GOOD-CODE" -> PairDeviceResponse("dev_1", "token", WorkspaceRef("ws_1", "Fortune Clinics"))
+            // Another workspace: a new record there.
+            "OTHER-CODE" -> PairDeviceResponse("dev_2", "token-2", WorkspaceRef("ws_2", "Abebe Shop"))
+            // The same workspace again: its record back, with a new token.
+            "SAME-CODE" -> PairDeviceResponse("dev_1", "token-3", WorkspaceRef("ws_1", "Fortune Clinics"))
+            else -> throw RelayApiException(400, "That code is wrong or has expired")
+        }
         paired += serverUrl to code
         phoneKeys += phoneKey
-        return PairDeviceResponse("dev_1", "token", WorkspaceRef("ws_1", "Fortune Clinics"))
+        return response
     }
 
     override suspend fun listProjects() = projects
 
     var unpaired = 0
     var unpairFails = false
+    /** Thrown by [unpair] instead of the plain offline failure. */
+    var unpairError: Exception? = null
     override suspend fun unpair() {
-        if (unpairFails) throw RelayApiException(0, "offline")
+        unpairError?.let { throw it }
+        if (unpairFails) throw java.io.IOException("offline")
         unpaired++
     }
 

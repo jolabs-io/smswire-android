@@ -31,6 +31,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.relay.android.designsystem.component.Hairline
 import app.relay.android.designsystem.component.LogMessageRow
 import app.relay.android.designsystem.component.PillChip
+import app.relay.android.designsystem.component.TextLink
 import app.relay.android.designsystem.icon.RelayIcons
 import app.relay.android.designsystem.theme.RelayColors
 import app.relay.android.designsystem.theme.RelayType
@@ -38,9 +39,9 @@ import app.relay.android.designsystem.theme.mono
 import app.relay.android.designsystem.theme.sans
 
 @Composable
-fun MessagesRoute(viewModel: MessagesViewModel, onOpenMessage: (String) -> Unit) {
+fun MessagesRoute(viewModel: MessagesViewModel, onOpenMessage: (String) -> Unit, onOpenBatches: () -> Unit) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    MessagesScreen(state, viewModel::onQueryChange, viewModel::onFilter, onOpenMessage)
+    MessagesScreen(state, viewModel::onQueryChange, viewModel::onFilter, onOpenMessage, onOpenBatches)
 }
 
 @Composable
@@ -49,6 +50,7 @@ fun MessagesScreen(
     onQueryChange: (String) -> Unit,
     onFilter: (MessageFilter) -> Unit,
     onOpenMessage: (String) -> Unit,
+    onOpenBatches: () -> Unit,
 ) {
     Column(Modifier.fillMaxSize()) {
         Column(
@@ -58,12 +60,13 @@ fun MessagesScreen(
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = 2.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Bottom,
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text("Messages", style = RelayType.ScreenTitle, color = RelayColors.Text)
-                Text(state.shownLabel, style = mono(12f), color = RelayColors.Dim)
+                TextLink("Batches", onOpenBatches)
             }
-            SearchField(state.query, onQueryChange)
+            // While searching, how many match; the filter chips carry their own counts.
+            SearchField(state.query, onQueryChange, matches = state.shownLabel.takeIf { state.query.isNotEmpty() })
         }
         Row(
             Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp),
@@ -98,7 +101,7 @@ fun MessagesScreen(
 }
 
 @Composable
-private fun SearchField(query: String, onQueryChange: (String) -> Unit) {
+private fun SearchField(query: String, onQueryChange: (String) -> Unit, matches: String?) {
     val shape = RoundedCornerShape(14.dp)
     Row(
         Modifier
@@ -124,5 +127,6 @@ private fun SearchField(query: String, onQueryChange: (String) -> Unit) {
                 inner()
             },
         )
+        matches?.let { Text(it, style = mono(12f), color = RelayColors.Dim) }
     }
 }

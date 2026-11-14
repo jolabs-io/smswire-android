@@ -32,6 +32,7 @@ import app.relay.android.designsystem.component.PrimaryButton
 import app.relay.android.designsystem.component.RelayTextField
 import app.relay.android.designsystem.component.SecondaryButton
 import app.relay.android.designsystem.component.SectionLabel
+import app.relay.android.designsystem.component.SendOnlyNote
 import app.relay.android.designsystem.icon.RelayIcons
 import app.relay.android.designsystem.theme.LocalAppName
 import app.relay.android.designsystem.theme.RelayColors
@@ -39,11 +40,15 @@ import app.relay.android.designsystem.theme.RelayType
 import app.relay.android.designsystem.theme.mono
 import app.relay.android.designsystem.theme.sans
 
-/** [onScan] opens the QR scanner; its result goes to [PairingViewModel.onScanned]. */
+/**
+ * [onScan] opens the QR scanner; its result goes to [PairingViewModel.onScanned]. [sendOnly]: this is
+ * the send-only build, which says what it can't do before it's paired.
+ */
 @Composable
-fun PairingRoute(viewModel: PairingViewModel, onScan: () -> Unit) {
+fun PairingRoute(viewModel: PairingViewModel, onScan: () -> Unit, sendOnly: Boolean = false) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    PairingScreen(state, onScan, viewModel::onCode, viewModel::onServer, viewModel::toggleServer, viewModel::submit)
+    val form = viewModel.form
+    PairingScreen(state, onScan, form::onCode, form::onServer, form::toggleServer, viewModel::submit, sendOnly)
 }
 
 @Composable
@@ -54,6 +59,7 @@ fun PairingScreen(
     onServer: (String) -> Unit,
     onToggleServer: () -> Unit,
     onSubmit: () -> Unit,
+    sendOnly: Boolean = false,
 ) {
     Column(
         Modifier
@@ -75,8 +81,31 @@ fun PairingScreen(
                 color = RelayColors.Muted,
             )
         }
+        if (sendOnly) SendOnlyNote()
 
-        PrimaryButton(if (state.busy) "Pairing…" else "Scan pairing code", onScan, active = !state.busy)
+        PairingForm(state, onScan, onCode, onServer, onToggleServer, onSubmit)
+        Spacer(Modifier.height(8.dp))
+    }
+}
+
+/**
+ * Scan button, or a typed code (and server); used by pairing and by switching workspace.
+ * [submitLabel] and [busyLabel] name what the code does.
+ */
+@Composable
+fun PairingForm(
+    state: PairingUi,
+    onScan: () -> Unit,
+    onCode: (String) -> Unit,
+    onServer: (String) -> Unit,
+    onToggleServer: () -> Unit,
+    onSubmit: () -> Unit,
+    scanLabel: String = "Scan pairing code",
+    submitLabel: String = "Pair with code",
+    busyLabel: String = "Pairing…",
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(22.dp)) {
+        PrimaryButton(if (state.busy) busyLabel else scanLabel, onScan, active = !state.busy)
 
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Box(Modifier.weight(1f).height(1.dp).background(RelayColors.Line))
@@ -128,12 +157,11 @@ fun PairingScreen(
         }
 
         SecondaryButton(
-            if (state.busy) "Pairing…" else "Pair with code",
+            if (state.busy) busyLabel else submitLabel,
             onClick = { if (state.canSubmit) onSubmit() },
             modifier = Modifier.fillMaxWidth(),
             icon = RelayIcons.Check,
             contentColor = if (state.canSubmit) RelayColors.Text else RelayColors.Dim,
         )
-        Spacer(Modifier.height(8.dp))
     }
 }

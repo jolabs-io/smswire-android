@@ -192,7 +192,7 @@ class MainActivity : ComponentActivity() {
                 }
             // The send-only build has no default-SMS-app components, so Android wouldn't offer the role.
             CheckAction.DEFAULT_SMS_APP -> if (BuildConfig.RECEIVES_SMS) defaultSmsAppRequest.launch(DefaultSmsApp.intent(this))
-            CheckAction.WORKSPACE, CheckAction.SMS_LIMIT -> Unit
+            CheckAction.SMS_LIMIT -> Unit
         }
     }
 

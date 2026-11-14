@@ -1,5 +1,6 @@
 package app.relay.android.feature.bulk
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -9,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
@@ -25,11 +27,12 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.relay.android.designsystem.component.DetailTopBar
 import app.relay.android.designsystem.component.Hairline
 import app.relay.android.designsystem.component.RelayCard
 import app.relay.android.designsystem.component.RelayListCard
-import app.relay.android.designsystem.component.ScreenHeader
 import app.relay.android.designsystem.component.SecondaryButton
+import app.relay.android.designsystem.component.SectionHeaderLink
 import app.relay.android.designsystem.component.SectionLabel
 import app.relay.android.designsystem.component.StackedBar
 import app.relay.android.designsystem.icon.RelayIcons
@@ -40,55 +43,72 @@ import app.relay.android.designsystem.theme.mono
 import app.relay.android.designsystem.theme.sans
 
 @Composable
-fun BulkRoute(viewModel: BulkViewModel) {
+fun BulkRoute(viewModel: BulkViewModel, onBack: () -> Unit) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    BulkScreen(state, viewModel::toggle)
+    BulkScreen(state, viewModel::toggle, onBack)
 }
 
+/** Every batch on this phone, running and done. Opened from the Gateway and Messages screens. */
 @Composable
-fun BulkScreen(state: BulkUiState, onToggle: (id: String, running: Boolean) -> Unit) {
-    LazyColumn(
-        Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        item { ScreenHeader("Bulk") }
+fun BulkScreen(state: BulkUiState, onToggle: (id: String, running: Boolean) -> Unit, onBack: () -> Unit) {
+    Column(Modifier.fillMaxSize().background(RelayColors.Background)) {
+        DetailTopBar("Batches", onBack)
+        LazyColumn(
+            Modifier.weight(1f),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            batchList(state, onToggle)
+        }
+    }
+}
+
+/**
+ * Running and paused batches for the Gateway screen, under a header that opens the full list;
+ * nothing at all while none are active.
+ */
+fun LazyListScope.activeBatches(batches: List<ActiveBatchUi>, onToggle: (id: String, running: Boolean) -> Unit, onOpenAll: () -> Unit) {
+    if (batches.isEmpty()) return
+    item(key = "batches-header") { SectionHeaderLink("Batches", "All batches", onOpenAll) }
+    items(batches, key = { "batch-${it.id}" }) { ActiveBatchCard(it, onToggle) }
+}
+
+private fun LazyListScope.batchList(state: BulkUiState, onToggle: (id: String, running: Boolean) -> Unit) {
+    item {
+        Text(
+            buildAnnotatedString {
+                append("Batches arrive from your web app via ")
+                withStyle(SpanStyle(fontFamily = GeistMono, fontWeight = FontWeight.Medium, fontSize = 12.5.sp, color = RelayColors.Text)) {
+                    append("POST /messages/bulk")
+                }
+                append(", or from Send on the web dashboard. Pausing here pauses it everywhere.")
+            },
+            style = RelayType.Body,
+            color = RelayColors.Muted,
+            modifier = Modifier.padding(horizontal = 2.dp),
+        )
+    }
+    item { SectionLabel("Active", Modifier.padding(start = 4.dp, top = 6.dp)) }
+    items(state.active, key = { it.id }) { ActiveBatchCard(it, onToggle) }
+    if (state.active.isEmpty()) {
         item {
             Text(
-                buildAnnotatedString {
-                    append("Batches arrive from your web app via ")
-                    withStyle(SpanStyle(fontFamily = GeistMono, fontWeight = FontWeight.Medium, fontSize = 12.5.sp, color = RelayColors.Text)) {
-                        append("POST /messages/bulk")
-                    }
-                    append(", or from Send on the web dashboard. Pausing here pauses it everywhere.")
-                },
-                style = RelayType.Body,
-                color = RelayColors.Muted,
-                modifier = Modifier.padding(horizontal = 2.dp),
+                "No batches running.",
+                style = sans(13.5f),
+                color = RelayColors.Dim,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(1.dp, RelayColors.Line, RoundedCornerShape(24.dp))
+                    .padding(horizontal = 20.dp, vertical = 28.dp),
             )
         }
-        item { SectionLabel("Active", Modifier.padding(start = 4.dp, top = 6.dp)) }
-        items(state.active, key = { it.id }) { ActiveBatchCard(it, onToggle) }
-        if (state.active.isEmpty()) {
-            item {
-                Text(
-                    "No batches running.",
-                    style = sans(13.5f),
-                    color = RelayColors.Dim,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .border(1.dp, RelayColors.Line, RoundedCornerShape(24.dp))
-                        .padding(horizontal = 20.dp, vertical = 28.dp),
-                )
-            }
-        }
-        if (state.done.isNotEmpty()) {
-            item { SectionLabel("Completed", Modifier.padding(start = 4.dp, top = 10.dp)) }
-            item {
-                RelayListCard {
-                    state.done.forEach { DoneBatchRow(it) }
-                }
+    }
+    if (state.done.isNotEmpty()) {
+        item { SectionLabel("Completed", Modifier.padding(start = 4.dp, top = 10.dp)) }
+        item {
+            RelayListCard {
+                state.done.forEach { DoneBatchRow(it) }
             }
         }
     }

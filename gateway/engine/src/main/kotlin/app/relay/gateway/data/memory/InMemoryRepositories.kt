@@ -89,6 +89,11 @@ class InMemoryMessageRepository : MessageRepository {
             )
         }
     }.distinctUntilChanged()
+
+    override suspend fun clearForNewWorkspace(keepHistory: Boolean) = store.update { current ->
+        if (!keepHistory) emptyMap()
+        else current.filterValues { !it.status.isPending }.mapValues { (_, m) -> m.copy(reportedStatus = m.status) }
+    }
 }
 
 class InMemoryBatchRepository : BatchRepository {
@@ -102,6 +107,9 @@ class InMemoryBatchRepository : BatchRepository {
         current + (id to batch.copy(status = status))
     }
     override suspend fun pausedIds() = store.value.values.filter { it.status == BatchStatus.PAUSED }.map { it.id }.toSet()
+    override suspend fun clearForNewWorkspace(keepFinished: Boolean) = store.update { current ->
+        if (keepFinished) current.filterValues { it.status == BatchStatus.DONE } else emptyMap()
+    }
 }
 
 class InMemoryProjectRepository : ProjectRepository {
@@ -149,4 +157,6 @@ class InMemoryInboundRepository : InboundRepository {
     override suspend fun markReported(ref: String) = store.update { current ->
         current[ref]?.let { current + (ref to it.copy(reported = true)) } ?: current
     }
+
+    override suspend fun clear() = store.update { emptyMap() }
 }

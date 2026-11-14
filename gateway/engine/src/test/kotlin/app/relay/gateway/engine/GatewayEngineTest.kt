@@ -330,6 +330,17 @@ class GatewayEngineTest {
     }
 
     @Test
+    fun `a revoke of the token it connected with leaves a newer pairing alone`() = runTest {
+        val h = Harness(this)
+        runCurrent()
+        // Switched to another workspace before the old socket's refusal came in.
+        h.identity.save(DeviceIdentity("dev_2", "t2", "Pixel", "Pixel 8"))
+        h.connection.state.value = ConnectionState.Revoked
+        runCurrent()
+        assertEquals("dev_2", h.identity.load()?.deviceId)
+    }
+
+    @Test
     fun `every battery percent and charging change is reported`() = runTest {
         val h = Harness(this)
         h.power.state.value = PowerState(80, true)

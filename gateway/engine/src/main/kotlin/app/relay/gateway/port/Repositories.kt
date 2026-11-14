@@ -42,6 +42,12 @@ interface MessageRepository {
 
     /** Counts since [since]; `lastReceivedAt` is all-time. */
     fun observeProjectActivity(since: Long): Flow<Map<String, ProjectActivity>>
+
+    /**
+     * The phone leaves its workspace: what still waits to send is dropped. [keepHistory] keeps the
+     * rest, marked reported so none of it reaches the next workspace's server; otherwise all goes.
+     */
+    suspend fun clearForNewWorkspace(keepHistory: Boolean)
 }
 
 interface BatchRepository {
@@ -50,6 +56,9 @@ interface BatchRepository {
     suspend fun upsert(batch: Batch)
     suspend fun setStatus(id: String, status: BatchStatus)
     suspend fun pausedIds(): Set<String>
+
+    /** The phone leaves its workspace: running and paused batches go; [keepFinished] keeps the done ones. */
+    suspend fun clearForNewWorkspace(keepFinished: Boolean)
 }
 
 /** Local cache of the projects this phone sends for. The web dashboard is the source of truth. */
@@ -83,4 +92,7 @@ interface InboundRepository {
     suspend fun insertIfAbsent(sms: IncomingSms): Boolean
     suspend fun unreported(): List<IncomingSms>
     suspend fun markReported(ref: String)
+
+    /** The phone leaves its workspace: nothing it received may reach the next one's inbox. */
+    suspend fun clear()
 }

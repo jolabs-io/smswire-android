@@ -3,7 +3,6 @@ package app.relay.android.feature.settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.relay.android.designsystem.component.ToastController
-import app.relay.android.designsystem.format.Format
 import app.relay.gateway.model.GatewaySettings
 import app.relay.gateway.model.InboxSync
 import app.relay.gateway.model.SimPreference
@@ -11,6 +10,9 @@ import app.relay.gateway.port.SettingsRepository
 import app.relay.gateway.port.SimCardProvider
 import app.relay.gateway.port.SmsQuota
 import app.relay.gateway.service.DeviceSetup
+import app.relay.gateway.service.ProjectService
+import app.relay.gateway.service.UnpairResult
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -19,6 +21,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /** Phone facts the settings screen reports. Implemented by the platform layer. */
 interface DeviceStatusProvider {
@@ -53,7 +56,7 @@ enum class ToggleKey(val label: String, val sub: String) {
 
 enum class CheckTone { OK, WARN, NEUTRAL }
 
-enum class CheckAction { BATTERY, SMS_PERMISSION, RECEIVE_SMS_PERMISSION, NOTIFICATIONS, WORKSPACE, SMS_LIMIT, DEFAULT_SMS_APP }
+enum class CheckAction { BATTERY, SMS_PERMISSION, RECEIVE_SMS_PERMISSION, NOTIFICATIONS, SMS_LIMIT, DEFAULT_SMS_APP }
 
 data class DeviceCheckUi(val label: String, val value: String, val tone: CheckTone, val action: CheckAction?)
 
@@ -87,7 +90,22 @@ data class SettingsUiState(
     val serverUrl: String = "",
     /** The web workspace this phone is paired into. */
     val workspace: String = "",
+    /** Projects this phone sends for. */
+    val projectCount: Int = 0,
     val smsLimit: SmsLimitUi = SmsLimitUi(),
+) {
+    val serverHost: String get() = serverUrl.substringAfter("://")
+}
+
+/** The Unpair sheet: closed, asking, waiting on the server, or the server couldn't be reached. */
+enum class UnpairStep { CLOSED, CONFIRM, BUSY, OFFLINE }
+
+data class UnpairUi(
+    val step: UnpairStep = UnpairStep.CLOSED,
+    /** Keep sent messages and finished batches on the phone; the queue goes either way. */
+    val keepHistory: Boolean = false,
+    /** Messages still waiting to send, which unpairing drops. */
+    val unsent: Int = 0,
 )
 
 class SettingsViewModel(
@@ -96,20 +114,23 @@ class SettingsViewModel(
     private val sims: SimCardProvider,
     private val device: DeviceStatusProvider,
     private val toast: ToastController,
+    projects: ProjectService,
     ticker: Flow<Unit>,
 ) : ViewModel() {
     /** Bumped when the screen resumes: device checks may have changed in system settings. */
     private val refreshes = MutableStateFlow(0)
 
-    val state: StateFlow<SettingsUiState> = combine(settings.settings, deviceSetup.identity, ticker, refreshes) { s, identity, _, _ ->
-        render(s, identity?.workspaceName.orEmpty())
+    val state: StateFlow<SettingsUiState> = combine(settings.settings, deviceSetup.identity, projects.observeAll(), ticker, refreshes) { s, identity, list, _, _ ->
+        render(s, identity?.workspaceName.orEmpty(), list.size)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SettingsUiState())
 
     private val _smsLimitOpen = MutableStateFlow(false)
     val smsLimitOpen: StateFlow<Boolean> = _smsLimitOpen.asStateFlow()
 
-    private val _unpairOpen = MutableStateFlow(false)
-    val unpairOpen: StateFlow<Boolean> = _unpairOpen.asStateFlow()
+    private val unpairStep = MutableStateFlow(UnpairStep.CLOSED)
+    private val keepHistory = MutableStateFlow(false)
+    val unpair: StateFlow<UnpairUi> = combine(unpairStep, keepHistory, deviceSetup.unsent, ::UnpairUi)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), UnpairUi())
 
     fun setSim(value: SimPreference) = update { it.copy(defaultSim = value) }
 
@@ -141,30 +162,55 @@ class SettingsViewModel(
     }
 
     fun openUnpair() {
-        _unpairOpen.value = true
+        keepHistory.value = false
+        unpairStep.value = UnpairStep.CONFIRM
     }
 
     fun dismissUnpair() {
-        _unpairOpen.value = false
+        if (unpairStep.value != UnpairStep.BUSY) unpairStep.value = UnpairStep.CLOSED
     }
 
-    /** Forgets the pairing; the app returns to the pairing screen. */
-    fun unpair() {
-        viewModelScope.launch {
-            _unpairOpen.value = false
-            deviceSetup.unpair()
-            toast.show("Phone unpaired")
+    fun setKeepHistory(keep: Boolean) {
+        keepHistory.value = keep
+    }
+
+    /** The server lets the phone go, then the app returns to the pairing screen. */
+    fun unpair() = leave { keep ->
+        when (deviceSetup.unpair(keep)) {
+            UnpairResult.DONE -> {
+                unpairStep.value = UnpairStep.CLOSED
+                toast.show("Phone unpaired")
+            }
+            UnpairResult.OFFLINE -> unpairStep.value = UnpairStep.OFFLINE
         }
+    }
+
+    /** Offline: leaves without telling the server, which keeps listing the phone until it's removed on the web. */
+    fun forgetAnyway() = leave { keep ->
+        deviceSetup.forgetAnyway(keep)
+        unpairStep.value = UnpairStep.CLOSED
+        toast.show("Unpaired on this phone only")
+    }
+
+    /**
+     * Unpairing takes this screen away (and this view model with it), so the work and its toast
+     * run to the end regardless.
+     */
+    private fun leave(work: suspend (keepHistory: Boolean) -> Unit) {
+        if (unpairStep.value == UnpairStep.BUSY) return
+        unpairStep.value = UnpairStep.BUSY
+        val keep = keepHistory.value
+        viewModelScope.launch { withContext(NonCancellable) { work(keep) } }
     }
 
     private fun update(transform: (GatewaySettings) -> GatewaySettings) {
         viewModelScope.launch { settings.update(transform) }
     }
 
-    private fun render(s: GatewaySettings, workspace: String): SettingsUiState {
+    private fun render(s: GatewaySettings, workspace: String, projectCount: Int): SettingsUiState {
         val cards = sims.available()
         val slots = mapOf(SimPreference.SIM1 to 1, SimPreference.SIM2 to 2)
-        val limit = device.smsQuota()?.let { (it.maxParts * 60_000L / it.windowMs.coerceAtLeast(1)).toInt() }
+        val limit = smsLimitPerMinute(device)
         return SettingsUiState(
             sims = listOf(SimPreference.SIM1 to "SIM 1", SimPreference.SIM2 to "SIM 2", SimPreference.ALTERNATE to "Alternate"),
             simCarriers = slots.mapNotNull { (pref, slot) -> cards.firstOrNull { it.slot == slot }?.let { pref to it.carrier } }.toMap(),
@@ -181,29 +227,10 @@ class SettingsViewModel(
                 ToggleKey.START_ON_BOOT to s.startOnBoot,
                 ToggleKey.ONLY_CHARGING to s.onlySendWhileCharging,
             ),
-            checks = listOfNotNull(
-                device.ignoresBatteryOptimisations().let { ok ->
-                    DeviceCheckUi("Battery optimisation", if (ok) "Unrestricted" else "Optimised", if (ok) CheckTone.OK else CheckTone.WARN, if (ok) null else CheckAction.BATTERY)
-                },
-                // Relay holds sends under this limit; above it Android would stop to ask the user.
-                if (limit == null) {
-                    DeviceCheckUi("Android SMS limit", "None", CheckTone.OK, CheckAction.SMS_LIMIT)
-                } else {
-                    DeviceCheckUi("Android SMS limit", "${Format.count(limit)} / min", if (limit >= s.maxRatePerMinute) CheckTone.OK else CheckTone.WARN, CheckAction.SMS_LIMIT)
-                },
-                device.smsPermissionGranted().let { ok ->
-                    DeviceCheckUi("Send SMS", if (ok) "Granted" else "Not granted", if (ok) CheckTone.OK else CheckTone.WARN, if (ok) null else CheckAction.SMS_PERMISSION)
-                },
-                device.receiveSmsPermissionGranted().takeIf { device.receivesSms() }?.let { ok ->
-                    DeviceCheckUi("Receive SMS", if (ok) "Granted" else "Replies lost", if (ok) CheckTone.OK else CheckTone.WARN, if (ok) null else CheckAction.RECEIVE_SMS_PERMISSION)
-                },
-                device.notificationsEnabled().let { ok ->
-                    DeviceCheckUi("Notifications", if (ok) "On" else "Off", if (ok) CheckTone.OK else CheckTone.WARN, if (ok) null else CheckAction.NOTIFICATIONS)
-                },
-                DeviceCheckUi("Workspace", workspace.ifEmpty { s.serverUrl.substringAfter("://") }, CheckTone.NEUTRAL, CheckAction.WORKSPACE),
-            ),
+            checks = deviceChecks(device, s, limit),
             serverUrl = s.serverUrl,
             workspace = workspace,
+            projectCount = projectCount,
             smsLimit = SmsLimitUi(limit, device.defaultSmsAppLiftsLimit(), device.isDefaultSmsApp()),
         )
     }

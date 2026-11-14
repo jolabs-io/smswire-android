@@ -8,9 +8,15 @@ import app.relay.protocol.BatchSource
 import app.relay.protocol.BatchStatus
 import app.relay.protocol.MessageStatus
 import app.relay.gateway.FakeRelayApi
+import app.relay.gateway.data.memory.InMemoryBatchRepository
 import app.relay.gateway.data.memory.InMemoryDeviceIdentityStore
+import app.relay.gateway.data.memory.InMemoryInboundRepository
+import app.relay.gateway.data.memory.InMemoryMessageRepository
+import app.relay.gateway.data.memory.InMemoryProjectRepository
 import app.relay.gateway.data.memory.InMemorySettingsRepository
+import app.relay.gateway.model.IncomingSms
 import app.relay.gateway.port.RelayApiException
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import kotlin.test.assertFailsWith
 import kotlin.test.Test
@@ -104,35 +110,179 @@ class DeviceSetupTest {
         assertNull(DeviceSetup.parseLink("josms://pair?s=https%3A%2F%2Fapi.relay.app&c=AAAA"))
     }
 
-    @Test
-    fun `pairing stores the identity and points the phone at that server`() = runTest {
+    private class Rig(phoneKey: String? = null) {
         val identity = InMemoryDeviceIdentityStore()
         val settings = InMemorySettingsRepository()
         val api = FakeRelayApi()
-        val setup = DeviceSetup(identity, settings, api, phoneKey = "a1b2c3")
+        val messages = InMemoryMessageRepository()
+        val batches = InMemoryBatchRepository()
+        val projects = InMemoryProjectRepository()
+        val inbound = InMemoryInboundRepository()
+        val setup = DeviceSetup(identity, settings, api, WorkspaceData(messages, batches, projects, inbound), phoneKey)
 
-        assertFailsWith<RelayApiException> { setup.pair("https://api.relay.app", "WRONG", "Pixel", "Pixel 8") }
-        assertNull(identity.load())
+        /** What a paired phone has: a sent and a queued message, a done and a running batch, an upload waiting. */
+        suspend fun stock() {
+            messages.insertIfAbsent(message("sent", MessageStatus.SENT))
+            messages.insertIfAbsent(message("queued", MessageStatus.QUEUED))
+            batches.upsert(Batch("b_done", "p1", "Done", BatchSource.APP, 1, 10, BatchStatus.DONE, 0))
+            batches.upsert(Batch("b_run", "p1", "Running", BatchSource.APP, 1, 10, BatchStatus.RUNNING, 0))
+            inbound.insertIfAbsent(IncomingSms("r1", "+251911000000", "STOP", 0, 1, reported = false))
+            projects.replaceAll(listOf(api.project("p1", "Shop")))
+        }
 
-        val paired = setup.pair("https://api.relay.app/", " GOOD-CODE ", "Pixel", "Pixel 8")
-        assertEquals(listOf<String?>("a1b2c3"), api.phoneKeys)
-        assertEquals("Fortune Clinics", paired.workspaceName)
-        assertEquals(paired, identity.load())
-        assertEquals("https://api.relay.app", settings.current().serverUrl)
-
-        setup.unpair()
-        assertNull(identity.load())
-        assertEquals(1, api.unpaired)
+        private fun message(id: String, status: MessageStatus) =
+            Message(id, "p1", "+251911000000", "Hi", status, MessageTimeline(receivedAt = 1, queuedAt = 1))
     }
 
     @Test
-    fun `unpairing offline still forgets the pairing`() = runTest {
-        val identity = InMemoryDeviceIdentityStore()
-        val api = FakeRelayApi().apply { unpairFails = true }
-        val setup = DeviceSetup(identity, InMemorySettingsRepository(), api)
-        setup.pair("https://api.relay.app", "GOOD-CODE", "Pixel", "Pixel 8")
+    fun `pairing stores the identity and points the phone at that server`() = runTest {
+        val rig = Rig(phoneKey = "a1b2c3")
 
-        setup.unpair()
-        assertNull(identity.load())
+        assertFailsWith<RelayApiException> { rig.setup.pair("https://api.relay.app", "WRONG", "Pixel", "Pixel 8") }
+        assertNull(rig.identity.load())
+
+        val paired = rig.setup.pair("https://api.relay.app/", " GOOD-CODE ", "Pixel", "Pixel 8")
+        assertEquals(listOf<String?>("a1b2c3"), rig.api.phoneKeys)
+        assertEquals("Fortune Clinics", paired.workspaceName)
+        assertEquals(paired, rig.identity.load())
+        assertEquals("https://api.relay.app", rig.settings.current().serverUrl)
+
+        assertEquals(UnpairResult.DONE, rig.setup.unpair(keepHistory = false))
+        assertNull(rig.identity.load())
+        assertEquals(1, rig.api.unpaired)
+    }
+
+    @Test
+    fun `unpairing clears the queue, and the history unless kept`() = runTest {
+        val rig = Rig()
+        rig.setup.pair("https://api.relay.app", "GOOD-CODE", "Pixel", "Pixel 8")
+        rig.stock()
+
+        rig.setup.unpair(keepHistory = true)
+        assertEquals(listOf("sent"), rig.messages.all.map { it.id })
+        // Kept history counts as reported: none of it goes to the next workspace's server.
+        assertTrue(rig.messages.findUnreported().isEmpty())
+        assertEquals(listOf("b_done"), rig.batches.observeAll().first().map { it.id })
+        assertTrue(rig.inbound.unreported().isEmpty())
+        assertTrue(rig.projects.observeAll().first().isEmpty())
+
+        rig.setup.pair("https://api.relay.app", "GOOD-CODE", "Pixel", "Pixel 8")
+        rig.stock()
+        rig.setup.unpair(keepHistory = false)
+        assertTrue(rig.messages.all.isEmpty())
+        assertTrue(rig.batches.observeAll().first().isEmpty())
+    }
+
+    @Test
+    fun `unpairing offline changes nothing until the user forgets anyway`() = runTest {
+        val rig = Rig()
+        val paired = rig.setup.pair("https://api.relay.app", "GOOD-CODE", "Pixel", "Pixel 8")
+        rig.stock()
+        rig.api.unpairFails = true
+
+        assertEquals(UnpairResult.OFFLINE, rig.setup.unpair(keepHistory = false))
+        assertEquals(paired, rig.identity.load())
+        assertEquals(2, rig.messages.all.size)
+
+        rig.setup.forgetAnyway(keepHistory = false)
+        assertNull(rig.identity.load())
+        assertTrue(rig.messages.all.isEmpty())
+    }
+
+    @Test
+    fun `a token the server already refuses counts as unpaired`() = runTest {
+        val rig = Rig()
+        rig.setup.pair("https://api.relay.app", "GOOD-CODE", "Pixel", "Pixel 8")
+        rig.api.unpairError = RelayApiException(401, "Unauthorized")
+
+        assertEquals(UnpairResult.DONE, rig.setup.unpair(keepHistory = false))
+        assertNull(rig.identity.load())
+
+        rig.setup.pair("https://api.relay.app", "GOOD-CODE", "Pixel", "Pixel 8")
+        rig.api.unpairError = RelayApiException(503, "Unavailable")
+        assertEquals(UnpairResult.OFFLINE, rig.setup.unpair(keepHistory = false))
+    }
+
+    @Test
+    fun `switching joins the new workspace first, then leaves the old one`() = runTest {
+        val rig = Rig()
+        rig.setup.pair("https://api.relay.app", "GOOD-CODE", "Pixel", "Pixel 8")
+        rig.stock()
+
+        val result = rig.setup.switchTo("https://eu.relay.app", "OTHER-CODE", "Pixel", "Pixel 8", keepHistory = false)
+
+        assertEquals(SwitchResult.Switched("Abebe Shop", leftOld = true), result)
+        assertEquals(1, rig.api.unpaired)
+        assertEquals("dev_2", rig.identity.load()?.deviceId)
+        assertEquals("https://eu.relay.app", rig.settings.current().serverUrl)
+        assertTrue(rig.messages.all.isEmpty())
+        assertTrue(rig.inbound.unreported().isEmpty())
+        assertFalse(rig.setup.switching.value)
+    }
+
+    @Test
+    fun `a code that doesn't work leaves the phone where it was`() = runTest {
+        val rig = Rig()
+        val paired = rig.setup.pair("https://api.relay.app", "GOOD-CODE", "Pixel", "Pixel 8")
+        rig.stock()
+
+        assertFailsWith<RelayApiException> {
+            rig.setup.switchTo("https://api.relay.app", "WRONG", "Pixel", "Pixel 8", keepHistory = false)
+        }
+        assertEquals(paired, rig.identity.load())
+        assertEquals(0, rig.api.unpaired)
+        assertEquals(2, rig.messages.all.size)
+        assertEquals("https://api.relay.app", rig.settings.current().serverUrl)
+    }
+
+    @Test
+    fun `switching still happens when the old server can't be told`() = runTest {
+        val rig = Rig()
+        rig.setup.pair("https://api.relay.app", "GOOD-CODE", "Pixel", "Pixel 8")
+        rig.api.unpairFails = true
+
+        val result = rig.setup.switchTo("https://api.relay.app", "OTHER-CODE", "Pixel", "Pixel 8", keepHistory = true)
+        assertEquals(SwitchResult.Switched("Abebe Shop", leftOld = false), result)
+        assertEquals("dev_2", rig.identity.load()?.deviceId)
+    }
+
+    @Test
+    fun `a code from the same workspace just pairs again`() = runTest {
+        val rig = Rig()
+        rig.setup.pair("https://api.relay.app", "GOOD-CODE", "Pixel", "Pixel 8")
+        rig.stock()
+
+        val result = rig.setup.switchTo("https://api.relay.app", "SAME-CODE", "Pixel", "Pixel 8", keepHistory = false)
+        assertEquals(SwitchResult.SameWorkspace("Fortune Clinics"), result)
+        assertEquals(0, rig.api.unpaired)
+        assertEquals("token-3", rig.identity.load()?.token)
+        assertEquals(2, rig.messages.all.size)
+    }
+
+    @Test
+    fun `a late revoke of the old pairing doesn't touch the new one`() = runTest {
+        val rig = Rig()
+        val old = rig.setup.pair("https://api.relay.app", "GOOD-CODE", "Pixel", "Pixel 8")
+        rig.setup.switchTo("https://api.relay.app", "OTHER-CODE", "Pixel", "Pixel 8", keepHistory = false)
+
+        rig.setup.revokedOnWeb(old)
+        assertEquals("dev_2", rig.identity.load()?.deviceId)
+
+        // Paired again in the same workspace: the old token's socket closing is no revoke either.
+        val current = rig.identity.load()!!
+        rig.setup.switchTo("https://api.relay.app", "SAME-CODE", "Pixel", "Pixel 8", keepHistory = false)
+        rig.setup.revokedOnWeb(current)
+        assertEquals("token-3", rig.identity.load()?.token)
+    }
+
+    @Test
+    fun `revoked on the web drops the queue and keeps the history`() = runTest {
+        val rig = Rig()
+        val paired = rig.setup.pair("https://api.relay.app", "GOOD-CODE", "Pixel", "Pixel 8")
+        rig.stock()
+
+        rig.setup.revokedOnWeb(paired)
+        assertNull(rig.identity.load())
+        assertEquals(listOf("sent"), rig.messages.all.map { it.id })
     }
 }
