@@ -12,6 +12,7 @@ import app.relay.protocol.ErrorResponse
 import app.relay.protocol.PairDeviceRequest
 import app.relay.protocol.PairDeviceResponse
 import app.relay.protocol.ProjectDto
+import app.relay.protocol.ReceiveRulesDto
 import app.relay.protocol.RelayJson
 import app.relay.protocol.RelayPaths
 import kotlinx.coroutines.Dispatchers
@@ -45,6 +46,14 @@ class OkHttpRelayApi(
 
     override suspend fun listProjects(): List<Project> =
         call(path(RelayPaths.DEVICE_PROJECTS), "GET", null, ListSerializer(ProjectDto.serializer())).map { it.toProject() }
+
+    override suspend fun updateReceive(projectId: String, rules: ReceiveRules): Project =
+        call(
+            path(RelayPaths.deviceProjectReceive(projectId)),
+            "PUT",
+            json(ReceiveRulesDto.serializer(), ReceiveRulesDto(rules.replies, rules.all, rules.senders)),
+            ProjectDto.serializer(),
+        ).toProject()
 
     override suspend fun unpair() = call<Unit>(path(RelayPaths.DEVICE_SELF), "DELETE", null, null)
 

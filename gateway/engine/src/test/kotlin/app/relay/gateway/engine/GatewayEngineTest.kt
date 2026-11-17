@@ -563,6 +563,21 @@ class GatewayEngineTest {
     }
 
     @Test
+    fun `what a project receives can be changed here, on the server first`() = runTest {
+        val h = Harness(this)
+        h.rules("p1" to ReceiveRules())
+        val rules = ReceiveRules(replies = false, all = true, senders = listOf("127"))
+        h.component.projectService.updateReceive("p1", rules)
+        assertEquals(listOf("p1" to rules), h.api.savedRules)
+        assertEquals(rules, h.projects.find("p1")?.receive)
+
+        // Offline: nothing changes here, and the caller hears about it.
+        h.api.updateReceiveFails = true
+        assertTrue(runCatching { h.component.projectService.updateReceive("p1", ReceiveRules()) }.isFailure)
+        assertEquals(rules, h.projects.find("p1")?.receive)
+    }
+
+    @Test
     fun `the server sees the inbox mode but no patch changes it`() = runTest {
         val h = Harness(this, GatewaySettings(inboxSync = InboxSync.OFF))
         h.connection.frames.tryEmit(ServerFrame.ApplySettings(RemoteSettingsPatch(keepAlive = false)))

@@ -13,6 +13,8 @@ val RelayJson: Json = Json {
 object RelayPaths {
     const val DEVICE_PAIR = "/v1/devices/pair"
     const val DEVICE_PROJECTS = "/v1/device/projects"
+    /** PUT [ReceiveRulesDto]: the phone changes one of its projects' receive rules; answers the [ProjectDto]. */
+    fun deviceProjectReceive(id: String) = "/v1/device/projects/$id/receive"
     /** DELETE: the phone unpairs itself (revokes its own token). */
     const val DEVICE_SELF = "/v1/device"
     const val DEVICE_SOCKET = "/v1/device/connect"

@@ -305,7 +305,7 @@ private fun GatewayShell(container: AppContainer, onFix: (CheckAction) -> Unit, 
                 composable(Routes.PROJECT) { backStack ->
                     val id = checkNotNull(backStack.arguments?.getString("id"))
                     ProjectDetailRoute(
-                        viewModel { ProjectDetailViewModel(id, g.projectService, g.settings, g.sims, container.clock::now) },
+                        viewModel { ProjectDetailViewModel(id, g.projectService, g.settings, g.sims, container.toast, container.clock::now) },
                         onBack = { nav.popBackStack() },
                         onCopy = copy,
                     )

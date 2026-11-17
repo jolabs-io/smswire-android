@@ -18,6 +18,11 @@ Each release gets a section before its android-vX.Y.Z tag is pushed (the release
 Use "### New", "### Changed" and "### Fixed". A beta gets its own section ("## 1.2.0-beta.1").
 -->
 
+## 1.5.0 — 2026-11-17
+
+### New
+- Change what a project receives right here: open it under Projects, then "Change what it receives" (replies, every SMS, and the senders it always takes). The web and the project's other phones get the change at once, and changes made on the web show up here.
+
 ## 1.4.0 — 2026-11-17
 
 ### New

@@ -7,6 +7,10 @@ import app.relay.gateway.model.ReceiveRules
  * so the phone lets go exactly what the server would give to some project.
  */
 object ReceiveFilter {
+    /** As the server allows: how many senders a project lists, and how long each may be. */
+    const val MAX_SENDERS = 50
+    const val MAX_SENDER_LENGTH = 32
+
     /** Fewer digits is a short code (a bank's or a carrier's), which no person texts from. */
     private const val MIN_PERSON_DIGITS = 7
 

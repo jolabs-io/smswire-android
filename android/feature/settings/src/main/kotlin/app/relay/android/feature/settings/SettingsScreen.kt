@@ -421,6 +421,6 @@ private fun ReceivingList(receiving: List<Pair<String, String>>) {
                 Text(takes, style = RelayType.Hint, color = RelayColors.Text, textAlign = TextAlign.End, modifier = Modifier.weight(1.4f))
             }
         }
-        Text("Set per project on the web dashboard.", style = RelayType.Hint, color = RelayColors.Dim)
+        Text("Change it on each project's page, here under Projects or on the web.", style = RelayType.Hint, color = RelayColors.Dim)
     }
 }

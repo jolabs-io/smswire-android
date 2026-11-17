@@ -24,6 +24,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.relay.android.designsystem.component.CopyField
 import app.relay.android.designsystem.component.DetailTopBar
 import app.relay.android.designsystem.component.IconBoxButton
+import app.relay.android.designsystem.component.SecondaryButton
 import app.relay.android.designsystem.component.SectionLabel
 import app.relay.android.designsystem.component.StatCell
 import app.relay.android.designsystem.icon.RelayIcons
@@ -40,6 +41,7 @@ fun ProjectDetailRoute(
     onCopy: (label: String, value: String) -> Unit,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val editor by viewModel.editor.collectAsStateWithLifecycle()
     val s = state ?: return
     Column(Modifier.fillMaxSize().background(RelayColors.Background)) {
         DetailTopBar(s.name, onBack)
@@ -78,11 +80,17 @@ fun ProjectDetailRoute(
             }
 
             Section("Receiving") {
-                InfoRow("Takes", s.receives)
+                val editing = editor
+                if (editing != null) {
+                    ReceiveEditor(editing, s.phoneAllowsAll, viewModel::changeReceive, viewModel::saveReceive, viewModel::cancelReceive)
+                } else {
+                    InfoRow("Takes", s.receives)
+                    SecondaryButton("Change what it receives", viewModel::editReceive, Modifier.fillMaxWidth())
+                }
             }
 
             Text(
-                "API keys, the SIM, the message type, the webhook and what it receives are managed on the web dashboard. Changes show up here on their own.",
+                "API keys, the SIM, the message type and the webhook are managed on the web dashboard. What it receives can be changed here or on the web; each shows the other's changes on its own.",
                 style = RelayType.Hint,
                 color = RelayColors.Dim,
                 modifier = Modifier.padding(horizontal = 2.dp),

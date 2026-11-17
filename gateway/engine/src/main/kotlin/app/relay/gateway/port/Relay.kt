@@ -2,6 +2,7 @@ package app.relay.gateway.port
 
 import app.relay.gateway.model.DeviceIdentity
 import app.relay.gateway.model.Project
+import app.relay.gateway.model.ReceiveRules
 import app.relay.protocol.AppUpdate
 import app.relay.protocol.DeviceFrame
 import app.relay.protocol.PairDeviceResponse
@@ -32,11 +33,13 @@ interface RelayConnection {
 
 class RelayApiException(val status: Int, message: String) : Exception(message)
 
-/** REST side of the device ↔ relay contract. Projects are managed on the web; the phone reads them. */
+/** REST side of the device ↔ relay contract. Projects are managed on the web; the phone reads them and can change what they receive. */
 interface RelayApi {
     /** Redeems a pairing code from the web dashboard at [serverUrl]; [phoneKey] lets a re-paired phone keep its record. */
     suspend fun pair(serverUrl: String, code: String, name: String, model: String, phoneKey: String?): PairDeviceResponse
     suspend fun listProjects(): List<Project>
+    /** Replaces one of this phone's projects' receive rules; the server's copy of the project comes back. */
+    suspend fun updateReceive(projectId: String, rules: ReceiveRules): Project
     /** Revokes this phone's token on the server, so it leaves its projects. */
     suspend fun unpair()
 

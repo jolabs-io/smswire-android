@@ -20,7 +20,7 @@ This is the app's full source, under the [GPL-3.0](LICENSE). The server it pairs
 - **All**: projects set to every SMS get every SMS on their SIM. Use it on a phone kept only for the gateway.
 - **Off**: nothing leaves the phone.
 
-Only someone holding the phone can change this setting; the dashboard shows it but can't widen it, and the phone shows what each project takes. The filter runs on the phone, before anything is stored for upload: see [`InboundSync.kt`](gateway/engine/src/main/kotlin/app/relay/gateway/engine/InboundSync.kt) and [`ReceiveFilter.kt`](gateway/engine/src/main/kotlin/app/relay/gateway/engine/ReceiveFilter.kt).
+Only someone holding the phone can change this setting; the dashboard shows it but can't widen it. What each project takes can be changed on the dashboard or in the app (Projects → a project), and each picks up the other's changes. The filter runs on the phone, before anything is stored for upload: see [`InboundSync.kt`](gateway/engine/src/main/kotlin/app/relay/gateway/engine/InboundSync.kt) and [`ReceiveFilter.kt`](gateway/engine/src/main/kotlin/app/relay/gateway/engine/ReceiveFilter.kt).
 
 Crash reports go to Sentry only in builds made with a Sentry DSN (the official releases); they hold stack traces, not message text.
 

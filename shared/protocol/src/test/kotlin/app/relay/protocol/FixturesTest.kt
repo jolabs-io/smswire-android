@@ -19,6 +19,7 @@ class FixturesTest {
         "PairDeviceRequest" to PairDeviceRequest.serializer(),
         "PairDeviceResponse" to PairDeviceResponse.serializer(),
         "ProjectDto" to ProjectDto.serializer(),
+        "ReceiveRules" to ReceiveRulesDto.serializer(),
         "BatchDto" to BatchDto.serializer(),
         "SendMessageRequest" to SendMessageRequest.serializer(),
         "BulkSendRequest" to BulkSendRequest.serializer(),

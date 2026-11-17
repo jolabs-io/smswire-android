@@ -2,6 +2,7 @@ package app.relay.gateway
 
 import app.relay.gateway.model.DeviceIdentity
 import app.relay.gateway.model.Project
+import app.relay.gateway.model.ReceiveRules
 import app.relay.gateway.model.SimCard
 import app.relay.gateway.port.Clock
 import app.relay.gateway.port.ConnectionState
@@ -90,6 +91,17 @@ class FakeRelayApi : RelayApi {
     }
 
     override suspend fun listProjects() = projects
+
+    /** Receive rules the phone saved, in order. */
+    val savedRules = mutableListOf<Pair<String, ReceiveRules>>()
+    var updateReceiveFails = false
+    override suspend fun updateReceive(projectId: String, rules: ReceiveRules): Project {
+        if (updateReceiveFails) throw java.io.IOException("offline")
+        savedRules += projectId to rules
+        val saved = projects.first { it.id == projectId }.copy(receive = rules)
+        projects = projects.map { if (it.id == projectId) saved else it }
+        return saved
+    }
 
     /** What [checkUpdate] answers; [checkFails] makes it fail as offline. */
     var update: AppUpdate? = null
