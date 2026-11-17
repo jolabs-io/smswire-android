@@ -46,10 +46,10 @@ fun RestrictedSmsSheet(state: RestrictedSmsState, onOpenAppInfo: () -> Unit) {
                 color = RelayColors.Muted,
             )
         }
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Step(1, "Tap Open app info below.")
-            Step(2, "Tap ⋮ at the top right, then Allow restricted settings, and confirm.")
-            Step(3, "Open Permissions → SMS and choose Allow.")
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Step(1, "Tap Open app info below, then ⋮ at the top right.") { AppInfoMock(app) }
+            Step(2, "Choose Allow restricted settings, and confirm.") { RestrictedMenuMock() }
+            Step(3, "Open Permissions → SMS and choose Allow.") { SmsPermissionMock() }
         }
         Text("Then come back: the gateway starts on its own.", style = RelayType.Body, color = RelayColors.Muted)
         PrimaryButton("Open app info", onClick = onOpenAppInfo, height = 50.dp)
@@ -57,9 +57,12 @@ fun RestrictedSmsSheet(state: RestrictedSmsState, onOpenAppInfo: () -> Unit) {
 }
 
 @Composable
-private fun Step(n: Int, text: String) {
+private fun Step(n: Int, text: String, picture: @Composable () -> Unit) {
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         Text("$n.", style = RelayType.Body, color = RelayColors.Lime, modifier = Modifier.width(16.dp))
-        Text(text, style = RelayType.Body, color = RelayColors.Text)
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(text, style = RelayType.Body, color = RelayColors.Text)
+            picture()
+        }
     }
 }

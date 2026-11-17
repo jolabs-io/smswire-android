@@ -70,6 +70,8 @@ private fun GatewaySettings.toRemote(receivesSms: Boolean) = RemoteSettings(
     inboxSync = if (receivesSms) inboxSync.toWire() else InboxSyncMode.OFF,
     receivesSms = receivesSms,
     updateMode = updateMode.toWire(),
+    joinKeywords = true,
+    receiveRules = true,
 )
 
 private fun UpdateMode.toWire() = when (this) {

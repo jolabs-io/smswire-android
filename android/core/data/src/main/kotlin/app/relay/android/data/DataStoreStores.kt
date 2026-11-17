@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import app.relay.gateway.model.DeviceIdentity
 import app.relay.gateway.model.GatewaySettings
@@ -15,6 +16,7 @@ import app.relay.gateway.model.InboxSync
 import app.relay.gateway.model.UpdateMode
 import app.relay.gateway.model.SimPreference
 import app.relay.gateway.port.DeviceIdentityStore
+import app.relay.gateway.port.JoinKeywordStore
 import app.relay.gateway.port.PendingUpdate
 import app.relay.gateway.port.SettingsRepository
 import app.relay.gateway.port.UpdateStore
@@ -124,6 +126,21 @@ class DataStoreDeviceIdentityStore(context: Context) : DeviceIdentityStore {
         val NAME = stringPreferencesKey("device_name")
         val MODEL = stringPreferencesKey("device_model")
         val WORKSPACE = stringPreferencesKey("workspace_name")
+    }
+}
+
+/** The workspace's join keywords, so a keyword texted while offline or before the hello still goes up. */
+class DataStoreJoinKeywordStore(context: Context) : JoinKeywordStore {
+    private val store = context.applicationContext.relayPreferences
+
+    override suspend fun keywords(): Set<String> = store.data.first()[KEYWORDS].orEmpty()
+
+    override suspend fun replace(keywords: Set<String>) {
+        store.edit { if (keywords.isEmpty()) it.remove(KEYWORDS) else it[KEYWORDS] = keywords }
+    }
+
+    private companion object {
+        val KEYWORDS = stringSetPreferencesKey("join_keywords")
     }
 }
 

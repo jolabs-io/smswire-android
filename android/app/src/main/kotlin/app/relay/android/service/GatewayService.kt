@@ -3,8 +3,10 @@ package app.relay.android.service
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.ServiceInfo
 import android.os.Build
 import androidx.core.app.NotificationCompat
@@ -33,6 +35,15 @@ class GatewayService : LifecycleService() {
     private var engine: Job? = null
     private var network: NetworkWatcher? = null
     private var statusUpdates: Job? = null
+    private var shown = "Starting gateway…"
+
+    /**
+     * Since Android 14 people can swipe the notification away while the gateway runs, which
+     * leaves no sign that it does: it comes straight back.
+     */
+    private val dismissed = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) = post(shown)
+    }
 
     override fun onCreate() {
         super.onCreate()
@@ -42,7 +53,8 @@ class GatewayService : LifecycleService() {
         } else {
             0
         }
-        ServiceCompat.startForeground(this, NOTIFICATION_ID, notification("Starting gateway…"), type)
+        ServiceCompat.startForeground(this, NOTIFICATION_ID, notification(shown), type)
+        ContextCompat.registerReceiver(this, dismissed, IntentFilter(ACTION_DISMISSED), ContextCompat.RECEIVER_NOT_EXPORTED)
 
         val container = (application as RelayApplication).container
         val gateway = container.gateway
@@ -60,17 +72,14 @@ class GatewayService : LifecycleService() {
         }
         statusUpdates = lifecycleScope.launch {
             gateway.controller.status.map(::describe).distinctUntilChanged().collect { text ->
-                getSystemService(NotificationManager::class.java)?.notify(NOTIFICATION_ID, notification(text))
+                shown = text
+                post(text)
             }
         }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         super.onStartCommand(intent, flags, startId)
-        if (intent?.action == ACTION_EXIT) {
-            AppExit.now(this)
-            return START_NOT_STICKY
-        }
         return START_STICKY
     }
 
@@ -79,6 +88,7 @@ class GatewayService : LifecycleService() {
         // "Reconnecting…", and a notify() after the service has stopped posts a stray notification
         // that outlives the app.
         statusUpdates?.cancel()
+        unregisterReceiver(dismissed)
         network?.stop()
         engine?.cancel()
         getSystemService(NotificationManager::class.java)?.cancel(NOTIFICATION_ID)
@@ -90,6 +100,10 @@ class GatewayService : LifecycleService() {
         status.connection !is ConnectionState.Connected -> "Reconnecting to relay…"
         status.waitingForCharger -> "Waiting for charger · sends only while charging"
         else -> "Gateway is live"
+    }
+
+    private fun post(text: String) {
+        getSystemService(NotificationManager::class.java)?.notify(NOTIFICATION_ID, notification(text))
     }
 
     private fun notification(text: String) = NotificationCompat.Builder(this, CHANNEL_ID)
@@ -107,13 +121,23 @@ class GatewayService : LifecycleService() {
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
             ),
         )
+        .setDeleteIntent(
+            PendingIntent.getBroadcast(
+                this,
+                2,
+                Intent(ACTION_DISMISSED).setPackage(packageName),
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+            ),
+        )
+        // Opens the app's "Exit?" confirmation: a stray tap in the notification shade mustn't
+        // take the gateway offline.
         .addAction(
             0,
             getString(R.string.action_exit),
-            PendingIntent.getService(
+            PendingIntent.getActivity(
                 this,
                 1,
-                Intent(this, GatewayService::class.java).setAction(ACTION_EXIT),
+                Intent(this, MainActivity::class.java).setAction(ACTION_CONFIRM_EXIT).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
             ),
         )
@@ -127,8 +151,10 @@ class GatewayService : LifecycleService() {
     companion object {
         private const val CHANNEL_ID = "gateway"
         private const val NOTIFICATION_ID = 1
-        /** The notification's "Exit": stop the gateway and end the app. */
-        private const val ACTION_EXIT = "app.relay.android.action.EXIT"
+        /** The notification's "Exit": the app asks before stopping the gateway. */
+        const val ACTION_CONFIRM_EXIT = "app.relay.android.action.CONFIRM_EXIT"
+        /** The notification was swiped away. */
+        private const val ACTION_DISMISSED = "app.relay.android.action.GATEWAY_NOTIFICATION_DISMISSED"
 
         fun start(context: Context) {
             ContextCompat.startForegroundService(context, Intent(context, GatewayService::class.java))

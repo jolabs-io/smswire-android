@@ -35,7 +35,11 @@ enum class DefaultSim {
     @SerialName("alternate") ALTERNATE,
 }
 
-/** Which received SMS the phone sends up to the inbox. The web sees it but can't change it. */
+/**
+ * Which received SMS may leave the phone. The web sees it but can't change it. An app reporting
+ * [RemoteSettings.receiveRules] follows each project's rules within it: REPLIES = all but a
+ * project's "every SMS", ALL = that too, OFF = none.
+ */
 @Serializable
 enum class InboxSyncMode {
     @SerialName("replies") REPLIES,
@@ -69,6 +73,10 @@ data class RemoteSettings(
     /** Reported only: false from the send-only build, which can't receive SMS (no replies or STOP). */
     val receivesSms: Boolean? = null,
     val updateMode: UpdateMode = UpdateMode.ASK,
+    /** Reported only: this app lets texts from new numbers through when they're exactly a join keyword. */
+    val joinKeywords: Boolean? = null,
+    /** Reported only: this app follows each project's receive rules. */
+    val receiveRules: Boolean? = null,
 )
 
 /** Settings changed on the web; null fields stay as they are. */
@@ -169,6 +177,13 @@ sealed interface ServerFrame {
     /** After the hello and when a release comes out: the build to update to, or null when up to date. */
     @Serializable @SerialName("app_update")
     data class AppUpdateOffer(val release: AppUpdate?) : ServerFrame
+
+    /**
+     * After the hello and when they change: the workspace's join keywords, normalised. With inbox
+     * sync on replies, a text from a new number goes up only when it's exactly one of these.
+     */
+    @Serializable @SerialName("join_keywords")
+    data class JoinKeywords(val keywords: List<String>) : ServerFrame
 }
 
 @Serializable
@@ -237,5 +252,7 @@ sealed interface DeviceFrame {
         val body: String,
         val receivedAt: Long,
         val sim: Int? = null,
+        /** This phone's projects that texted the sender in the last 30 days. */
+        val texted: List<String>? = null,
     ) : DeviceFrame
 }

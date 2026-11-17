@@ -77,8 +77,12 @@ fun ProjectDetailRoute(
                 InfoRow("Webhook", s.webhook, mono = true)
             }
 
+            Section("Receiving") {
+                InfoRow("Takes", s.receives)
+            }
+
             Text(
-                "API keys, the SIM, the message type and the webhook are managed on the web dashboard. Changes show up here on their own.",
+                "API keys, the SIM, the message type, the webhook and what it receives are managed on the web dashboard. Changes show up here on their own.",
                 style = RelayType.Hint,
                 color = RelayColors.Dim,
                 modifier = Modifier.padding(horizontal = 2.dp),

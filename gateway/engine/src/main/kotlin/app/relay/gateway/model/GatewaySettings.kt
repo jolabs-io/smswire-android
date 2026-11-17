@@ -3,13 +3,16 @@ package app.relay.gateway.model
 enum class SimPreference { SIM1, SIM2, ALTERNATE }
 
 /**
- * Which received SMS go up to the web inbox. Only the phone changes it: the server can see it
- * but never widen it, so a bank's codes can't be pulled off the phone remotely.
+ * Which received SMS may leave the phone. Only the phone changes it: the server sees it but can't
+ * widen it. Within it, each project's receive rules (set on the web) decide what goes up.
  */
 enum class InboxSync {
-    /** Only senders this phone texted lately: replies and STOP, never bank codes or personal texts. */
+    /**
+     * What the projects' rules take: replies to them (STOP included), the senders they list, and
+     * people texting a join keyword. A project set to every SMS still gets only those.
+     */
     REPLIES,
-    /** Every SMS the phone receives. */
+    /** Also every SMS, for projects set to take everything on their SIM. */
     ALL,
     /** None; replies and STOP stay on the phone. */
     OFF,
@@ -45,7 +48,7 @@ data class GatewaySettings(
         const val MIN_RATE = 1
         const val MAX_RATE = 60
         const val MAX_RETRIES = 5
-        /** With [InboxSync.REPLIES], a sender this phone texted within this window counts as replying. */
+        /** A sender a project texted within this window counts as replying. */
         const val REPLY_WINDOW_MS = 30L * 24 * 60 * 60 * 1000
     }
 }

@@ -16,6 +16,7 @@ import app.relay.gateway.data.memory.InMemorySettingsRepository
 import app.relay.gateway.model.DeviceIdentity
 import app.relay.gateway.model.GatewaySettings
 import app.relay.gateway.model.InboxSync
+import app.relay.gateway.model.ReceiveRules
 import app.relay.gateway.model.SimPreference
 import app.relay.gateway.port.ConnectionState
 import app.relay.gateway.port.PowerState
@@ -115,6 +116,8 @@ class GatewayEngineTest {
                     startOnBoot = true,
                     onlySendWhileCharging = false,
                     receivesSms = true,
+                    joinKeywords = true,
+                    receiveRules = true,
                 ),
                 appVersionCode = 7,
             ),
@@ -335,6 +338,16 @@ class GatewayEngineTest {
     }
 
     @Test
+    fun `a reconnect fetches the projects again, for changes made while offline`() = runTest {
+        val h = Harness(this)
+        h.api.projects = listOf(h.api.project("p9", "Changed while offline"))
+        h.connection.state.value = ConnectionState.Disconnected
+        h.connection.state.value = ConnectionState.Connected(1)
+        runCurrent()
+        assertEquals("Changed while offline", h.projects.find("p9")?.name)
+    }
+
+    @Test
     fun `the server's update offer reaches the updater`() = runTest {
         val h = Harness(this)
         val release = AppUpdate("1.4.0", 310, 3_000_000, null, "/app/download/android/1.4.0", null, critical = false, publishedAt = 0)
@@ -431,6 +444,37 @@ class GatewayEngineTest {
     }
 
     @Test
+    fun `replies also sends a join keyword from a number the phone never texted, and nothing else from it`() = runTest {
+        val h = Harness(this)
+        h.connection.frames.emit(ServerFrame.JoinKeywords(listOf("A2", "እሺ")))
+        runCurrent()
+        val inbound = h.component.inboundSync
+        inbound.receive("+251922000000", " a 2! ", sentAt = 1, receivedAt = 2_000, sim = 1)
+        inbound.receive("0922 000 001", "እሺ", sentAt = 2, receivedAt = 2_000, sim = 1)
+        inbound.receive("+251922000000", "A2 please", sentAt = 3, receivedAt = 2_000, sim = 1)
+        inbound.receive("+251922000000", "hey, it's me", sentAt = 4, receivedAt = 2_000, sim = 1)
+        // A bank or a short code never goes, even with a keyword's text.
+        inbound.receive("CBE", "A2", sentAt = 5, receivedAt = 2_000, sim = 1)
+        inbound.receive("8994", "A2", sentAt = 6, receivedAt = 2_000, sim = 1)
+        assertEquals(listOf(" a 2! ", "እሺ"), h.connection.sent.filterIsInstance<DeviceFrame.Incoming>().map { it.body })
+
+        // The server's next list replaces this one.
+        h.connection.frames.emit(ServerFrame.JoinKeywords(emptyList()))
+        runCurrent()
+        inbound.receive("+251922000002", "A2", sentAt = 7, receivedAt = 3_000, sim = 1)
+        assertEquals(2, h.connection.sent.filterIsInstance<DeviceFrame.Incoming>().size)
+    }
+
+    @Test
+    fun `off keeps join keywords on the phone too`() = runTest {
+        val h = Harness(this, GatewaySettings(inboxSync = InboxSync.OFF))
+        h.connection.frames.emit(ServerFrame.JoinKeywords(listOf("A2")))
+        runCurrent()
+        h.component.inboundSync.receive("+251922000000", "A2", sentAt = 1, receivedAt = 2_000, sim = 1)
+        assertTrue(h.connection.sent.none { it is DeviceFrame.Incoming })
+    }
+
+    @Test
     fun `off keeps every received SMS on the phone, all sends every one`() = runTest {
         val h = Harness(this, GatewaySettings(inboxSync = InboxSync.OFF))
         h.dispatch(SmsJob(messageId = "m1", projectId = "p1", to = "+251911234567", body = "hi", receivedAt = 1_000))
@@ -441,6 +485,81 @@ class GatewayEngineTest {
         h.settingsRepo.update { it.copy(inboxSync = InboxSync.ALL) }
         h.component.inboundSync.receive("CBE", "Your code is 482913", sentAt = 2, receivedAt = 3_000, sim = 1)
         assertEquals(listOf("Your code is 482913"), h.connection.sent.filterIsInstance<DeviceFrame.Incoming>().map { it.body })
+    }
+
+    /** The phone's projects, with their receive rules as the web set them. */
+    private suspend fun Harness.rules(vararg projects: Pair<String, ReceiveRules>, sims: Map<String, Int> = emptyMap()) {
+        val list = projects.map { (id, rules) -> api.project(id, id).copy(receive = rules, sim = sims[id]) }
+        api.projects = list
+        this.projects.replaceAll(list)
+    }
+
+    private fun Harness.incoming() = connection.sent.filterIsInstance<DeviceFrame.Incoming>()
+
+    @Test
+    fun `with rules from the web, a listed sender goes however it's written, and strangers don't`() = runTest {
+        val h = Harness(this)
+        h.rules("p1" to ReceiveRules(replies = false, senders = listOf("cbe", "127", "0911 234 567")))
+        val inbound = h.component.inboundSync
+        inbound.receive("CBE", "Credited", sentAt = 1, receivedAt = 2_000, sim = 1)
+        inbound.receive("127", "Paid", sentAt = 2, receivedAt = 2_000, sim = 1)
+        inbound.receive("+251911234567", "Hi", sentAt = 3, receivedAt = 2_000, sim = 1)
+        inbound.receive("Safaricom", "Promo", sentAt = 4, receivedAt = 2_000, sim = 1)
+        inbound.receive("+251922000000", "Hello", sentAt = 5, receivedAt = 2_000, sim = 1)
+        assertEquals(listOf("Credited", "Paid", "Hi"), h.incoming().map { it.body })
+    }
+
+    @Test
+    fun `a reply goes for the project that texted them, which the server is told`() = runTest {
+        val h = Harness(this)
+        h.rules("p1" to ReceiveRules(), "p2" to ReceiveRules(replies = false))
+        h.dispatch(SmsJob(messageId = "m1", projectId = "p1", to = "+251911234567", body = "Your order shipped", receivedAt = 1_000))
+        h.dispatch(SmsJob(messageId = "m2", projectId = "p2", to = "+251922000000", body = "Your code", receivedAt = 1_000))
+        runCurrent()
+
+        h.component.inboundSync.receive("0911 234 567", "Thanks", sentAt = 1, receivedAt = 2_000, sim = 1)
+        h.component.inboundSync.receive("+251922000000", "Thanks", sentAt = 2, receivedAt = 2_000, sim = 1)
+        // Replies off still lets STOP through: opt-outs keep working.
+        h.component.inboundSync.receive("+251922000000", "Stop", sentAt = 3, receivedAt = 2_000, sim = 1)
+        assertEquals(listOf("0911 234 567" to listOf("p1"), "+251922000000" to listOf("p2")), h.incoming().map { it.from to it.texted })
+        assertEquals("Stop", h.incoming().last().body)
+    }
+
+    @Test
+    fun `a project's every SMS needs the phone set to All, and stays on its SIM`() = runTest {
+        val h = Harness(this)
+        h.rules("p1" to ReceiveRules(all = true), sims = mapOf("p1" to 2))
+        val inbound = h.component.inboundSync
+        inbound.receive("CBE", "Code 1", sentAt = 1, receivedAt = 2_000, sim = 2)
+        assertTrue(h.incoming().isEmpty())
+
+        h.settingsRepo.update { it.copy(inboxSync = InboxSync.ALL) }
+        inbound.receive("CBE", "Code 2", sentAt = 2, receivedAt = 2_000, sim = 1)
+        inbound.receive("CBE", "Code 3", sentAt = 3, receivedAt = 2_000, sim = 2)
+        assertEquals(listOf("Code 3" to emptyList<String>()), h.incoming().map { it.body to it.texted })
+    }
+
+    @Test
+    fun `join keywords get through whatever the projects have set, and off still keeps everything`() = runTest {
+        val h = Harness(this)
+        h.rules("p1" to ReceiveRules(replies = false))
+        h.connection.frames.emit(ServerFrame.JoinKeywords(listOf("A2")))
+        runCurrent()
+        h.component.inboundSync.receive("+251922000000", "a2", sentAt = 1, receivedAt = 2_000, sim = 1)
+        h.component.inboundSync.receive("CBE", "A2", sentAt = 2, receivedAt = 2_000, sim = 1)
+        assertEquals(listOf("a2"), h.incoming().map { it.body })
+
+        h.settingsRepo.update { it.copy(inboxSync = InboxSync.OFF) }
+        h.component.inboundSync.receive("+251922000001", "a2", sentAt = 3, receivedAt = 2_000, sim = 1)
+        assertEquals(1, h.incoming().size)
+    }
+
+    @Test
+    fun `until the server sends rules, the phone keeps its old behaviour`() = runTest {
+        val h = Harness(this, GatewaySettings(inboxSync = InboxSync.ALL))
+        h.projects.replaceAll(listOf(h.api.project("p1", "Shop"), h.api.project("p2", "Bank").copy(receive = ReceiveRules(replies = false))))
+        h.component.inboundSync.receive("CBE", "Code", sentAt = 1, receivedAt = 2_000, sim = 1)
+        assertEquals(listOf("Code"), h.incoming().map { it.body })
     }
 
     @Test

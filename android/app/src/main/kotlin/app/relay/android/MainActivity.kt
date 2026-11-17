@@ -20,6 +20,7 @@ import app.relay.android.feature.settings.CheckAction
 import app.relay.android.platform.RestrictedSettings
 import app.relay.android.platform.updates.UpdateNotifications
 import app.relay.android.service.AppExit
+import app.relay.android.service.GatewayService
 import app.relay.android.telephony.DefaultSmsApp
 import app.relay.android.ui.RelayApp
 import app.relay.android.ui.RestrictedSmsState
@@ -93,6 +94,7 @@ class MainActivity : ComponentActivity() {
         container.scope.launch { container.gateway.appUpdates.finishUpdate() }
         takePairingLink(intent)
         takeUpdateTap(intent)
+        takeExitTap(intent)
     }
 
     // singleTask: a link opened while the app is running arrives here.
@@ -101,6 +103,12 @@ class MainActivity : ComponentActivity() {
         setIntent(intent)
         takePairingLink(intent)
         takeUpdateTap(intent)
+        takeExitTap(intent)
+    }
+
+    /** The gateway notification's Exit: show the confirmation instead of stopping at once. */
+    private fun takeExitTap(intent: Intent?) {
+        if (intent?.action == GatewayService.ACTION_CONFIRM_EXIT) container.confirmExit.value = true
     }
 
     /** An update notification was tapped: open the update sheet. */

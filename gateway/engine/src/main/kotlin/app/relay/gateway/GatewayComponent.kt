@@ -22,8 +22,10 @@ import app.relay.gateway.engine.StatusSync
 import app.relay.gateway.port.BatchRepository
 import app.relay.gateway.port.Clock
 import app.relay.gateway.data.memory.InMemoryInboundRepository
+import app.relay.gateway.data.memory.InMemoryJoinKeywordStore
 import app.relay.gateway.port.DeviceIdentityStore
 import app.relay.gateway.port.InboundRepository
+import app.relay.gateway.port.JoinKeywordStore
 import app.relay.gateway.port.MessageRepository
 import app.relay.gateway.port.PowerMonitor
 import app.relay.gateway.port.ProjectRepository
@@ -84,6 +86,8 @@ class GatewayPorts(
     val installer: AppInstaller = NoAppInstaller,
     val updateNotifier: UpdateNotifier = NoUpdateNotifier,
     val updateStore: UpdateStore = InMemoryUpdateStore(),
+    /** The workspace's join keywords, kept so they work before the next hello. */
+    val joinKeywords: JoinKeywordStore = InMemoryJoinKeywordStore(),
 )
 
 /**
@@ -121,7 +125,7 @@ class GatewayComponent(
     )
 
     /** Hand received SMS here (from the platform's SMS receiver). */
-    val inboundSync = InboundSync(ports.inbound, ports.connection, ports.settings, ports.messages)
+    val inboundSync = InboundSync(ports.inbound, ports.connection, ports.settings, ports.messages, ports.joinKeywords, ports.projects)
 
     private val intake = JobIntake(ports.messages, ports.batches, ports.clock, dispatcher::wake)
     private val uiTicker = ticker(TICK_MS)
@@ -132,7 +136,7 @@ class GatewayComponent(
         identityStore = ports.identity,
         settings = ports.settings,
         api = ports.api,
-        workspaceData = WorkspaceData(ports.messages, ports.batches, ports.projects, ports.inbound),
+        workspaceData = WorkspaceData(ports.messages, ports.batches, ports.projects, ports.inbound, ports.joinKeywords),
         phoneKey = ports.phoneKey,
     )
 

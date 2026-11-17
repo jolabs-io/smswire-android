@@ -61,6 +61,8 @@ class GatewayEngine(
                 connection.send(hello())
                 statusSync.flush()
                 inboundSync.flush()
+                // projects_changed reaches only phones online at the time: catch up on what changed meanwhile.
+                runCatching { onProjectsChanged() }
             }
         }
         launch {
@@ -92,6 +94,7 @@ class GatewayEngine(
             is ServerFrame.Pong -> controller.onPong(frame.sentAt)
             ServerFrame.ProjectsChanged -> runCatching { onProjectsChanged() }
             is ServerFrame.IncomingAck -> inboundSync.onAck(frame.ref)
+            is ServerFrame.JoinKeywords -> inboundSync.onJoinKeywords(frame.keywords)
             is ServerFrame.ApplySettings -> remoteSettings.apply(frame.settings)
             is ServerFrame.AppUpdateOffer -> updates.offered(frame.release)
         }

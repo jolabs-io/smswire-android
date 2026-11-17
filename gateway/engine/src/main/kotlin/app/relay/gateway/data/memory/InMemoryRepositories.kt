@@ -11,6 +11,7 @@ import app.relay.gateway.model.StatusCounts
 import app.relay.gateway.port.BatchRepository
 import app.relay.gateway.port.DeviceIdentityStore
 import app.relay.gateway.port.InboundRepository
+import app.relay.gateway.port.JoinKeywordStore
 import app.relay.gateway.port.MessageRepository
 import app.relay.gateway.port.ProjectRepository
 import app.relay.gateway.port.PendingUpdate
@@ -50,6 +51,9 @@ class InMemoryMessageRepository : MessageRepository {
 
     override suspend fun messagedSince(digits: String, since: Long) =
         store.value.values.any { it.timeline.receivedAt >= since && it.to.filter(Char::isDigit).endsWith(digits) }
+
+    override suspend fun textedBy(digits: String, since: Long) =
+        store.value.values.filter { it.timeline.receivedAt >= since && it.to.filter(Char::isDigit).endsWith(digits) }.map { it.projectId }.toSet()
 
     override suspend fun insertIfAbsent(message: Message): Boolean {
         var inserted = false
@@ -118,6 +122,7 @@ class InMemoryProjectRepository : ProjectRepository {
     private val store = MutableStateFlow<Map<String, Project>>(emptyMap())
 
     override fun observeAll() = store.map { it.values.toList() }
+    override suspend fun all() = store.value.values.toList()
     override fun observe(id: String) = store.map { it[id] }.distinctUntilChanged()
     override suspend fun find(id: String) = store.value[id]
     override suspend fun upsert(project: Project) = store.update { it + (project.id to project) }
@@ -161,6 +166,15 @@ class InMemoryInboundRepository : InboundRepository {
     }
 
     override suspend fun clear() = store.update { emptyMap() }
+}
+
+class InMemoryJoinKeywordStore : JoinKeywordStore {
+    @Volatile private var keywords: Set<String> = emptySet()
+
+    override suspend fun keywords() = keywords
+    override suspend fun replace(keywords: Set<String>) {
+        this.keywords = keywords
+    }
 }
 
 class InMemoryUpdateStore : UpdateStore {

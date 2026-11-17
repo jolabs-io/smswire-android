@@ -36,6 +36,24 @@
       "createdAt": 1761643200000,
       "sim": 2,
       "defaultType": "otp"
+    },
+    {
+      "id": "p_abc123def457",
+      "name": "Payments",
+      "slug": "prj_x1y2z4",
+      "endpoint": "https://gw.example.com/v1/p/prj_x1y2z4/messages",
+      "enabled": true,
+      "createdAt": 1761643200000,
+      "defaultType": "transactional",
+      "receive": {
+        "replies": false,
+        "all": false,
+        "senders": [
+          "127",
+          "CBE",
+          "+251911234567"
+        ]
+      }
     }
   ],
   "BatchDto": [

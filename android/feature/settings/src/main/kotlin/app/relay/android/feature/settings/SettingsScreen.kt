@@ -25,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -221,6 +222,7 @@ fun SettingsScreen(
                     style = RelayType.Hint,
                     color = if (state.inboxSync == InboxSync.ALL) RelayColors.Amber else RelayColors.Dim,
                 )
+                if (state.inboxSync != InboxSync.OFF && state.receiving.isNotEmpty()) ReceivingList(state.receiving)
             } else {
                 Text("Send-only build", style = RelayType.RowTitle, color = RelayColors.Text)
                 Text(sendOnlyHint(LocalAppName.current), style = RelayType.Hint, color = RelayColors.Amber)
@@ -401,10 +403,24 @@ private fun DangerButton(text: String, onClick: () -> Unit) {
 
 private val UPDATE_OPTIONS = listOf(UpdateMode.ASK to "Ask me", UpdateMode.AUTO to "Automatic")
 
-private val INBOX_OPTIONS = listOf(InboxSync.REPLIES to "Replies", InboxSync.ALL to "All", InboxSync.OFF to "Off")
+private val INBOX_OPTIONS = listOf(InboxSync.REPLIES to "Rules", InboxSync.ALL to "All", InboxSync.OFF to "Off")
 
 private fun inboxHint(mode: InboxSync) = when (mode) {
-    InboxSync.REPLIES -> "Only replies from numbers this phone texted in the last 30 days, STOP included. Bank codes and other texts stay on the phone."
-    InboxSync.ALL -> "Every SMS this phone receives goes to the web inbox, bank codes and personal texts included. Use it on a phone kept only for the gateway."
+    InboxSync.REPLIES -> "What each project takes, as set on the web: replies to it (STOP included), the senders it lists, and join keywords. Everything else stays on the phone, even for a project set to every SMS."
+    InboxSync.ALL -> "Projects set to every SMS on the web get every SMS on their SIM, bank codes and personal texts included. Use it on a phone kept only for the gateway."
     InboxSync.OFF -> "No received SMS leave the phone. Replies and STOP won't reach the web."
+}
+
+/** Each project with what it receives; set per project on the web. */
+@Composable
+private fun ReceivingList(receiving: List<Pair<String, String>>) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(top = 4.dp)) {
+        receiving.forEach { (project, takes) ->
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(project, style = RelayType.Hint, color = RelayColors.Muted, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                Text(takes, style = RelayType.Hint, color = RelayColors.Text, textAlign = TextAlign.End, modifier = Modifier.weight(1.4f))
+            }
+        }
+        Text("Set per project on the web dashboard.", style = RelayType.Hint, color = RelayColors.Dim)
+    }
 }

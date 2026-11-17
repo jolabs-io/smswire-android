@@ -37,6 +37,19 @@ data class ProjectDto(
     /** SIM slot (1-based) the project sends from unless a request names one; null = device default. */
     val sim: Int? = null,
     val defaultType: MessageType = MessageType.TRANSACTIONAL,
+    /** Which received SMS the project takes; null from servers before receive rules. */
+    val receive: ReceiveRulesDto? = null,
+)
+
+/**
+ * Which received SMS a project takes (packages/contracts/src/receive.ts): replies from people it
+ * texted in the last 30 days, [senders] always, and every SMS on its SIM where the phone allows it.
+ */
+@Serializable
+data class ReceiveRulesDto(
+    val replies: Boolean,
+    val all: Boolean,
+    val senders: List<String>,
 )
 
 @Serializable

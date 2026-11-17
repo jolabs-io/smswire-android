@@ -11,6 +11,7 @@ import app.relay.gateway.FakeRelayApi
 import app.relay.gateway.data.memory.InMemoryBatchRepository
 import app.relay.gateway.data.memory.InMemoryDeviceIdentityStore
 import app.relay.gateway.data.memory.InMemoryInboundRepository
+import app.relay.gateway.data.memory.InMemoryJoinKeywordStore
 import app.relay.gateway.data.memory.InMemoryMessageRepository
 import app.relay.gateway.data.memory.InMemoryProjectRepository
 import app.relay.gateway.data.memory.InMemorySettingsRepository
@@ -118,7 +119,7 @@ class DeviceSetupTest {
         val batches = InMemoryBatchRepository()
         val projects = InMemoryProjectRepository()
         val inbound = InMemoryInboundRepository()
-        val setup = DeviceSetup(identity, settings, api, WorkspaceData(messages, batches, projects, inbound), phoneKey)
+        val setup = DeviceSetup(identity, settings, api, WorkspaceData(messages, batches, projects, inbound, InMemoryJoinKeywordStore()), phoneKey)
 
         /** What a paired phone has: a sent and a queued message, a done and a running batch, an upload waiting. */
         suspend fun stock() {

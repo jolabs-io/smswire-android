@@ -1,6 +1,7 @@
 package app.relay.android.network
 
 import app.relay.gateway.model.Project
+import app.relay.gateway.model.ReceiveRules
 import app.relay.gateway.port.DeviceIdentityStore
 import app.relay.gateway.port.RelayApi
 import app.relay.gateway.port.RelayApiException
@@ -106,4 +107,5 @@ internal fun ProjectDto.toProject() = Project(
     createdAt = createdAt,
     sim = sim,
     defaultType = defaultType,
+    receive = receive?.let { ReceiveRules(it.replies, it.all, it.senders) },
 )

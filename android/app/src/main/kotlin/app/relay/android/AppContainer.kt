@@ -7,6 +7,7 @@ import android.os.Build
 import android.provider.Settings
 import app.relay.android.data.DataStoreDeviceIdentityStore
 import app.relay.android.data.DataStoreSettingsRepository
+import app.relay.android.data.DataStoreJoinKeywordStore
 import app.relay.android.data.DataStoreUpdateStore
 import app.relay.android.data.RoomBatchRepository
 import app.relay.android.data.RoomInboundRepository
@@ -64,6 +65,8 @@ class AppContainer(app: Application) {
 
     /** An update notification was tapped: the update sheet opens. */
     val openUpdate = MutableStateFlow(false)
+    /** The gateway notification's Exit was tapped: ask in the app before stopping. */
+    val confirmExit = MutableStateFlow(false)
 
     /** The relay socket; [NetworkWatcher] reconnects it when the network changes. */
     val connection = OkHttpRelayConnection(http, clock, scope)
@@ -91,6 +94,7 @@ class AppContainer(app: Application) {
             installer = AndroidAppInstaller(app, http, settings, BuildConfig.DEFAULT_SERVER_URL),
             updateNotifier = updateNotifications,
             updateStore = DataStoreUpdateStore(app),
+            joinKeywords = DataStoreJoinKeywordStore(app),
         ),
         scope = scope,
     )

@@ -34,6 +34,9 @@ interface MessageRepository {
     /** Whether a message to a number ending in [digits] arrived since [since], however the number was written. */
     suspend fun messagedSince(digits: String, since: Long): Boolean
 
+    /** The projects that messaged a number ending in [digits] since [since]. */
+    suspend fun textedBy(digits: String, since: Long): Set<String>
+
     fun observeStatusCounts(since: Long): Flow<StatusCounts>
 
     fun observeSentTimes(since: Long): Flow<List<Long>>
@@ -64,6 +67,7 @@ interface BatchRepository {
 /** Local cache of the projects this phone sends for. The web dashboard is the source of truth. */
 interface ProjectRepository {
     fun observeAll(): Flow<List<Project>>
+    suspend fun all(): List<Project>
     fun observe(id: String): Flow<Project?>
     suspend fun find(id: String): Project?
     suspend fun upsert(project: Project)
@@ -84,6 +88,12 @@ interface DeviceIdentityStore {
     suspend fun load(): DeviceIdentity?
     suspend fun save(identity: DeviceIdentity)
     suspend fun clear()
+}
+
+/** The workspace's join keywords (normalised), as its server last sent them. Kept across restarts. */
+interface JoinKeywordStore {
+    suspend fun keywords(): Set<String>
+    suspend fun replace(keywords: Set<String>)
 }
 
 /** Received SMS waiting to reach the server's inbox. */

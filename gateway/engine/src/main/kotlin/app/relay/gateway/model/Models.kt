@@ -103,6 +103,18 @@ data class Project(
     /** SIM slot every message uses unless the request names one; null = the device's default. */
     val sim: Int? = null,
     val defaultType: MessageType = MessageType.TRANSACTIONAL,
+    /** Which received SMS the project takes; null until the server has sent them. */
+    val receive: ReceiveRules? = null,
+)
+
+/**
+ * Which received SMS a project takes, set on the web: replies from people it texted in the last
+ * 30 days, [senders] always, and every SMS on its SIM when the phone is set to allow it ([all]).
+ */
+data class ReceiveRules(
+    val replies: Boolean = true,
+    val all: Boolean = false,
+    val senders: List<String> = emptyList(),
 )
 
 /** Per-project traffic seen by this device. */

@@ -2,6 +2,7 @@ package app.relay.gateway.service
 
 import app.relay.gateway.port.BatchRepository
 import app.relay.gateway.port.InboundRepository
+import app.relay.gateway.port.JoinKeywordStore
 import app.relay.gateway.port.MessageRepository
 import app.relay.gateway.port.ProjectRepository
 import kotlinx.coroutines.flow.Flow
@@ -14,18 +15,20 @@ class WorkspaceData(
     private val batches: BatchRepository,
     private val projects: ProjectRepository,
     private val inbound: InboundRepository,
+    private val joinKeywords: JoinKeywordStore,
 ) {
     /** Messages still waiting to be sent from this phone: leaving the workspace drops them. */
     val unsent: Flow<Int> = messages.observeStatusCounts(since = 0).map { it.pending }.distinctUntilChanged()
 
     /**
-     * Leaving the workspace: the queue, received SMS not yet uploaded, unfinished batches and the
-     * project list always go. [keepHistory] keeps sent messages and finished batches to look back on.
+     * Leaving the workspace: the queue, received SMS not yet uploaded, unfinished batches, the
+     * project list and the join keywords always go. [keepHistory] keeps sent messages and finished batches to look back on.
      */
     suspend fun clear(keepHistory: Boolean) {
         messages.clearForNewWorkspace(keepHistory)
         batches.clearForNewWorkspace(keepFinished = keepHistory)
         inbound.clear()
+        joinKeywords.replace(emptySet())
         projects.replaceAll(emptyList())
     }
 }

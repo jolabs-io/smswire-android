@@ -56,6 +56,8 @@ data class ProjectEntity(
     val createdAt: Long,
     val sim: Int?,
     val defaultType: String,
+    /** The project's receive rules as JSON (ReceiveRulesDto); null until the server sent them. */
+    val receive: String? = null,
 )
 
 /** A received SMS on its way to the server's inbox. */

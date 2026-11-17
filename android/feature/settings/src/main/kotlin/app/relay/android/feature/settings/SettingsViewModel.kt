@@ -3,8 +3,10 @@ package app.relay.android.feature.settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.relay.android.designsystem.component.ToastController
+import app.relay.android.designsystem.format.Format
 import app.relay.gateway.model.GatewaySettings
 import app.relay.gateway.model.InboxSync
+import app.relay.gateway.model.Project
 import app.relay.gateway.model.SimPreference
 import app.relay.gateway.model.UpdateMode
 import app.relay.gateway.port.SettingsRepository
@@ -98,6 +100,8 @@ data class SettingsUiState(
     val workspace: String = "",
     /** Projects this phone sends for. */
     val projectCount: Int = 0,
+    /** Each project's name and what it receives, as set on the web. */
+    val receiving: List<Pair<String, String>> = emptyList(),
     val smsLimit: SmsLimitUi = SmsLimitUi(),
 ) {
     val serverHost: String get() = serverUrl.substringAfter("://")
@@ -127,7 +131,7 @@ class SettingsViewModel(
     private val refreshes = MutableStateFlow(0)
 
     val state: StateFlow<SettingsUiState> = combine(settings.settings, deviceSetup.identity, projects.observeAll(), ticker, refreshes) { s, identity, list, _, _ ->
-        render(s, identity?.workspaceName.orEmpty(), list.size)
+        render(s, identity?.workspaceName.orEmpty(), list.map { it.project })
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SettingsUiState())
 
     private val _smsLimitOpen = MutableStateFlow(false)
@@ -215,7 +219,7 @@ class SettingsViewModel(
         viewModelScope.launch { settings.update(transform) }
     }
 
-    private fun render(s: GatewaySettings, workspace: String, projectCount: Int): SettingsUiState {
+    private fun render(s: GatewaySettings, workspace: String, projects: List<Project>): SettingsUiState {
         val cards = sims.available()
         val slots = mapOf(SimPreference.SIM1 to 1, SimPreference.SIM2 to 2)
         val limit = smsLimitPerMinute(device)
@@ -239,7 +243,10 @@ class SettingsViewModel(
             checks = deviceChecks(device, s, limit),
             serverUrl = s.serverUrl,
             workspace = workspace,
-            projectCount = projectCount,
+            projectCount = projects.size,
+            receiving = projects.map { p ->
+                p.name to (p.receive?.let { Format.receives(it.replies, it.all, it.senders, s.inboxSync == InboxSync.ALL) } ?: "Updating…")
+            },
             smsLimit = SmsLimitUi(limit, device.defaultSmsAppLiftsLimit(), device.isDefaultSmsApp()),
         )
     }

@@ -51,6 +51,22 @@ object Format {
     }
 
     /** Uppercase initials of up to two words: "CRM Reminders" → "CR". */
+    /**
+     * Which received SMS a project takes, in a few words: "Replies, CBE, 127 +2", "Only CBE",
+     * "Every SMS". With [allowsAll] false (this phone isn't set to All), every SMS is held back.
+     */
+    fun receives(replies: Boolean, all: Boolean, senders: List<String>, allowsAll: Boolean): String {
+        if (all && allowsAll) return "Every SMS"
+        val shown = senders.take(2).joinToString(", ") + if (senders.size > 2) " +${senders.size - 2}" else ""
+        val base = when {
+            replies && senders.isNotEmpty() -> "Replies, $shown"
+            replies -> "Replies"
+            senders.isNotEmpty() -> "Only $shown"
+            else -> "STOP and join keywords only"
+        }
+        return if (all) "$base · every SMS needs All" else base
+    }
+
     fun initials(name: String): String =
         name.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }.map { it.first() }.take(2).joinToString("").uppercase()
 

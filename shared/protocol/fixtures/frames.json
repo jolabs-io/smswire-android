@@ -280,6 +280,35 @@
       "from": "+251911234568",
       "body": "Yes, 10:00 works",
       "receivedAt": 1761643300001
+    },
+    {
+      "type": "incoming",
+      "ref": "in_8f2a93",
+      "from": "+251911234569",
+      "body": "Thanks",
+      "receivedAt": 1761643300002,
+      "sim": 2,
+      "texted": [
+        "p_abc123def456"
+      ]
+    },
+    {
+      "type": "settings",
+      "settings": {
+        "gatewayOnline": true,
+        "defaultSim": "sim1",
+        "maxRatePerMinute": 30,
+        "maxRetries": 2,
+        "requestDeliveryReports": true,
+        "keepAlive": true,
+        "startOnBoot": true,
+        "onlySendWhileCharging": false,
+        "inboxSync": "all",
+        "receivesSms": true,
+        "joinKeywords": true,
+        "receiveRules": true,
+        "updateMode": "auto"
+      }
     }
   ]
 }

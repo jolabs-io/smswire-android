@@ -174,6 +174,13 @@ private fun GatewayShell(container: AppContainer, onFix: (CheckAction) -> Unit, 
     val detail by detailVm.state.collectAsStateWithLifecycle()
     // Shell-level so the confirmation covers the tab bar too.
     val exitConfirm = rememberExitConfirm()
+    val confirmExit by container.confirmExit.collectAsStateWithLifecycle()
+    LaunchedEffect(confirmExit) {
+        if (confirmExit) {
+            container.confirmExit.value = false
+            exitConfirm.ask()
+        }
+    }
     // App-wide: the Gateway's issues card and the Settings tab's badge show the same checks.
     val healthVm = viewModel { DeviceHealthViewModel(g.settings.settings, container.deviceStatus, container.uiTicker) }
     val issues by healthVm.issues.collectAsStateWithLifecycle()
@@ -298,7 +305,7 @@ private fun GatewayShell(container: AppContainer, onFix: (CheckAction) -> Unit, 
                 composable(Routes.PROJECT) { backStack ->
                     val id = checkNotNull(backStack.arguments?.getString("id"))
                     ProjectDetailRoute(
-                        viewModel { ProjectDetailViewModel(id, g.projectService, g.sims, container.clock::now) },
+                        viewModel { ProjectDetailViewModel(id, g.projectService, g.settings, g.sims, container.clock::now) },
                         onBack = { nav.popBackStack() },
                         onCopy = copy,
                     )

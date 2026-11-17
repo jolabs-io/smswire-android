@@ -45,6 +45,16 @@ interface MessageDao {
     )
     suspend fun messagedSince(digits: String, since: Long): Boolean
 
+    /** The projects that messaged a number ending in [digits] since [since], written as in [messagedSince]. */
+    @Query(
+        """
+        SELECT DISTINCT projectId FROM messages
+        WHERE receivedAt >= :since
+          AND REPLACE(REPLACE(REPLACE(REPLACE(recipient, ' ', ''), '-', ''), '(', ''), ')', '') LIKE '%' || :digits
+        """,
+    )
+    suspend fun textedBy(digits: String, since: Long): List<String>
+
     /** Returns -1 when the id already exists. */
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insert(entity: MessageEntity): Long
@@ -125,6 +135,9 @@ interface BatchDao {
 abstract class ProjectDao {
     @Query("SELECT * FROM projects ORDER BY createdAt")
     abstract fun all(): Flow<List<ProjectEntity>>
+
+    @Query("SELECT * FROM projects ORDER BY createdAt")
+    abstract suspend fun list(): List<ProjectEntity>
 
     @Query("SELECT * FROM projects WHERE id = :id")
     abstract fun observe(id: String): Flow<ProjectEntity?>

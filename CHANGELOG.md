@@ -18,6 +18,22 @@ Each release gets a section before its android-vX.Y.Z tag is pushed (the release
 Use "### New", "### Changed" and "### Fixed". A beta gets its own section ("## 1.2.0-beta.1").
 -->
 
+## 1.4.0 — 2026-11-17
+
+### New
+- People can join your contact groups by texting a keyword (like A2 or OK) to this phone, even if it never texted them. Only a text that is exactly one of your keywords goes to the web.
+- Each project now chooses on the web which received SMS it takes: replies to it, senders you list (a number, a short code like 127 or a name like CBE), or every SMS. This phone sends up only what one of its projects takes. Settings and each project's page show what that is.
+
+### Changed
+- Incoming SMS: "Replies" is now "Rules", which follows your projects. "All" now gives every SMS only to projects set to take it; "Off" still keeps everything on the phone.
+- A project pinned to one SIM receives only the SMS that arrive on that SIM.
+
+## 1.3.2 — 2026-11-15
+
+### Fixed
+- The gateway's notification comes straight back if it's swiped away, so you can always see the gateway is running.
+- "Exit" in the notification now asks first, so a stray tap in the notification shade can't take the gateway offline.
+
 ## 1.3.1 — 2026-11-14
 
 ### Fixed

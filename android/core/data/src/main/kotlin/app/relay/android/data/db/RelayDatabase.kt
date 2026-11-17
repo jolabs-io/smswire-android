@@ -9,7 +9,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [MessageEntity::class, BatchEntity::class, ProjectEntity::class, IncomingEntity::class],
-    version = 4,
+    version = 5,
     exportSchema = false,
 )
 abstract class RelayDatabase : RoomDatabase() {
@@ -21,7 +21,7 @@ abstract class RelayDatabase : RoomDatabase() {
     companion object {
         fun create(context: Context): RelayDatabase =
             Room.databaseBuilder(context.applicationContext, RelayDatabase::class.java, "relay.db")
-                .addMigrations(PROJECT_SIM, PAIRED_GATEWAY, INBOX)
+                .addMigrations(PROJECT_SIM, PAIRED_GATEWAY, INBOX, RECEIVE_RULES)
                 .build()
 
         /** v2: projects can be pinned to a SIM. */
@@ -56,6 +56,13 @@ abstract class RelayDatabase : RoomDatabase() {
                         "receivedAt INTEGER NOT NULL, sim INTEGER, reported INTEGER NOT NULL)",
                 )
                 db.execSQL("CREATE INDEX index_incoming_reported ON incoming (reported)")
+            }
+        }
+
+        /** v5: each project's receive rules, set on the web; null until the next fetch brings them. */
+        private val RECEIVE_RULES = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE projects ADD COLUMN receive TEXT")
             }
         }
     }

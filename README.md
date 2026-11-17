@@ -14,13 +14,13 @@ This is the app's full source, under the [GPL-3.0](LICENSE). The server it pairs
 | Internet, network state | Keeps one outbound WebSocket to the server; the phone needs no open port. |
 | Notifications, foreground service, start at boot, ignore battery optimisations | Keeps the gateway running while the screen is off and after a restart. |
 
-**Incoming SMS.** You choose, under **Gateway settings → Incoming SMS**, which received texts leave the phone:
+**Incoming SMS.** Each project on the dashboard chooses which received texts it takes: replies from people it texted in the last 30 days (the default), senders it lists (a number, a short code like 127, or a name like CBE), and every SMS on its SIM. STOP and START from people it texted, and texts that are exactly a group's join keyword, always get through. The phone sends up a text only when one of its projects takes it, and within its own setting under **Gateway settings → Incoming SMS**:
 
-- **Replies** (the default): only texts from numbers this phone sent to in the last 30 days, so replies and STOP reach your dashboard. Codes from banks, short codes and everything else stay on the phone.
-- **All**: every SMS the phone receives. Use it on a phone kept only for the gateway.
+- **Rules** (the default): what the projects take, except "every SMS". Codes from banks, short codes and personal texts stay on the phone unless a project lists that sender.
+- **All**: projects set to every SMS get every SMS on their SIM. Use it on a phone kept only for the gateway.
 - **Off**: nothing leaves the phone.
 
-Only someone holding the phone can change this; the dashboard shows the setting but can't widen it. The filter runs on the phone, before anything is stored for upload: see [`InboundSync.kt`](gateway/engine/src/main/kotlin/app/relay/gateway/engine/InboundSync.kt).
+Only someone holding the phone can change this setting; the dashboard shows it but can't widen it, and the phone shows what each project takes. The filter runs on the phone, before anything is stored for upload: see [`InboundSync.kt`](gateway/engine/src/main/kotlin/app/relay/gateway/engine/InboundSync.kt) and [`ReceiveFilter.kt`](gateway/engine/src/main/kotlin/app/relay/gateway/engine/ReceiveFilter.kt).
 
 Crash reports go to Sentry only in builds made with a Sentry DSN (the official releases); they hold stack traces, not message text.
 

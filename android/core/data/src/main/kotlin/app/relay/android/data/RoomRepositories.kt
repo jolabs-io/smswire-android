@@ -14,6 +14,7 @@ import app.relay.gateway.model.Message
 import app.relay.gateway.model.MessageTimeline
 import app.relay.gateway.model.Project
 import app.relay.gateway.model.ProjectActivity
+import app.relay.gateway.model.ReceiveRules
 import app.relay.gateway.model.StatusCounts
 import app.relay.gateway.model.WebhookOutcome
 import app.relay.gateway.port.BatchRepository
@@ -24,6 +25,8 @@ import app.relay.protocol.BatchSource
 import app.relay.protocol.BatchStatus
 import app.relay.protocol.MessageStatus
 import app.relay.protocol.MessageType
+import app.relay.protocol.ReceiveRulesDto
+import app.relay.protocol.RelayJson
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -41,6 +44,8 @@ class RoomMessageRepository(private val dao: MessageDao) : MessageRepository {
     override suspend fun find(id: String) = dao.find(id)?.toModel()
 
     override suspend fun messagedSince(digits: String, since: Long) = dao.messagedSince(digits, since)
+
+    override suspend fun textedBy(digits: String, since: Long) = dao.textedBy(digits, since).toSet()
 
     override suspend fun insertIfAbsent(message: Message) = dao.insert(message.toEntity()) != -1L
 
@@ -88,6 +93,7 @@ class RoomBatchRepository(private val dao: BatchDao) : BatchRepository {
 
 class RoomProjectRepository(private val dao: ProjectDao) : ProjectRepository {
     override fun observeAll() = dao.all().map { list -> list.map { it.toModel() } }
+    override suspend fun all() = dao.list().map { it.toModel() }
     override fun observe(id: String) = dao.observe(id).map { it?.toModel() }.distinctUntilChanged()
     override suspend fun find(id: String) = dao.find(id)?.toModel()
     override suspend fun upsert(project: Project) = dao.upsert(project.toEntity())
@@ -155,6 +161,13 @@ private fun BatchEntity.toModel() =
 private fun Batch.toEntity() = BatchEntity(id, projectId, name, source.name, total, rate, status.name, createdAt)
 
 private fun ProjectEntity.toModel() =
-    Project(id, name, slug, endpoint, webhookUrl, enabled, createdAt, sim, MessageType.valueOf(defaultType))
+    Project(id, name, slug, endpoint, webhookUrl, enabled, createdAt, sim, MessageType.valueOf(defaultType), receive?.let(::decodeRules))
 
-private fun Project.toEntity() = ProjectEntity(id, name, slug, endpoint, webhookUrl, enabled, createdAt, sim, defaultType.name)
+private fun Project.toEntity() =
+    ProjectEntity(id, name, slug, endpoint, webhookUrl, enabled, createdAt, sim, defaultType.name, receive?.let(::encodeRules))
+
+private fun encodeRules(r: ReceiveRules) = RelayJson.encodeToString(ReceiveRulesDto.serializer(), ReceiveRulesDto(r.replies, r.all, r.senders))
+
+/** Unreadable rules read as unknown: the phone then keeps its old behaviour rather than dropping SMS. */
+private fun decodeRules(json: String) = runCatching { RelayJson.decodeFromString(ReceiveRulesDto.serializer(), json) }
+    .getOrNull()?.let { ReceiveRules(it.replies, it.all, it.senders) }
