@@ -21,7 +21,17 @@ data class SendMessageRequest(
     /** A saved template (id or name) used instead of [body]. */
     val template: String? = null,
     val variables: JsonObject? = null,
-    /** Optional SIM slot (1-based). Falls back to the project's SIM, then the device's default. */
+    /** A named SIM (its label, or its number) to send from: names a phone and a slot at once. */
+    val from: String? = null,
+    /**
+     * Send only from this phone (its id from GET /v1/p/{project}/status). Omitted: whichever of
+     * the project's phones is free, so a bulk send goes out over all of them at once.
+     */
+    val phone: String? = null,
+    /**
+     * Optional SIM slot (1-based). With [phone], that phone's slot; without it, only the
+     * project's phones that have the slot may take the message. Falls back to the project's SIM.
+     */
     val sim: Int? = null,
     /** Defaults to the project's type. Sets priority: otp first, marketing last. */
     val type: MessageType? = null,
@@ -48,9 +58,13 @@ data class BulkItem(
 data class BulkSendRequest(
     val name: String? = null,
     val messages: List<BulkItem>,
-    /** Messages per minute for this batch; capped by the device's max send rate. */
+    /** Messages per minute for each phone that takes a share; capped by that phone's max send rate. */
     val rate: Int? = null,
-    /** SIM slot (1-based) for the whole batch. Falls back to the project's SIM, then the device's default. */
+    /** A named SIM (its label, or its number) to send the whole batch from. */
+    val from: String? = null,
+    /** Send the whole batch from this one phone; omitted, it is spread over the project's phones. */
+    val phone: String? = null,
+    /** SIM slot (1-based) for the whole batch; without [phone], only phones that have it may take it. */
     val sim: Int? = null,
     /** Text (or saved template) for items without their own body. */
     val body: String? = null,
@@ -135,6 +149,10 @@ data class OtpRequest(
     val body: String? = null,
     /** A saved template (id or name) with {{code}}, instead of [body]. */
     val template: String? = null,
+    /** A named SIM to send the code from, so it always comes from one number. */
+    val from: String? = null,
+    /** Send only from this phone, so the code always comes from one number. */
+    val phone: String? = null,
     val sim: Int? = null,
 )
 
@@ -185,6 +203,10 @@ data class ScheduleRequest(
     val type: MessageType? = null,
     val tags: List<String>? = null,
     val metadata: JsonObject? = null,
+    /** A named SIM every run sends from. */
+    val from: String? = null,
+    /** Send every run from this one phone. */
+    val phone: String? = null,
     val sim: Int? = null,
     val rate: Int? = null,
     @SerialName("ends_at") val endsAt: String? = null,

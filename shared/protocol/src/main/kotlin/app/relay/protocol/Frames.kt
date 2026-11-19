@@ -68,6 +68,12 @@ data class RemoteSettings(
     val keepAlive: Boolean,
     val startOnBoot: Boolean,
     val onlySendWhileCharging: Boolean,
+    /**
+     * Send from every SIM at once instead of one message at a time, so a dual-SIM phone gets
+     * through a batch about twice as fast. Each SIM then carries twice the traffic it did while
+     * they took turns. Null from apps that only ever send from one at a time.
+     */
+    val parallelSims: Boolean? = null,
     /** Reported only: no patch carries it, so the server can't widen what leaves the phone. */
     val inboxSync: InboxSyncMode = InboxSyncMode.REPLIES,
     /** Reported only: false from the send-only build, which can't receive SMS (no replies or STOP). */
@@ -90,6 +96,7 @@ data class RemoteSettingsPatch(
     val keepAlive: Boolean? = null,
     val startOnBoot: Boolean? = null,
     val onlySendWhileCharging: Boolean? = null,
+    val parallelSims: Boolean? = null,
     val updateMode: UpdateMode? = null,
 )
 

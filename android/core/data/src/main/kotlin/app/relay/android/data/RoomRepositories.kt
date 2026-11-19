@@ -51,8 +51,12 @@ class RoomMessageRepository(private val dao: MessageDao) : MessageRepository {
 
     override suspend fun update(message: Message) = dao.update(message.toEntity())
 
-    override suspend fun nextSendable(now: Long, excludedBatchIds: Set<String>) =
-        dao.nextSendable(now, excludedBatchIds.toList())?.toModel()
+    override suspend fun nextSendable(now: Long, excludedBatchIds: Set<String>, sim: Int?, excludedIds: Set<String>) =
+        if (sim == null) {
+            dao.nextSendable(now, excludedBatchIds.toList(), excludedIds.toList())?.toModel()
+        } else {
+            dao.nextSendableForSim(now, excludedBatchIds.toList(), excludedIds.toList(), sim)?.toModel()
+        }
 
     override suspend fun findUnreported() = dao.unreported().map { it.toModel() }
 

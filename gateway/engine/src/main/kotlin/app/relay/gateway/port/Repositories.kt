@@ -26,8 +26,12 @@ interface MessageRepository {
 
     suspend fun update(message: Message)
 
-    /** The most urgent (lowest priority), then oldest, queued message whose backoff has elapsed and whose batch isn't paused. */
-    suspend fun nextSendable(now: Long, excludedBatchIds: Set<String>): Message?
+    /**
+     * The most urgent (lowest priority), then oldest, queued message whose backoff has elapsed and
+     * whose batch isn't paused. With [sim], only messages for that slot and those that name none;
+     * [excludedIds] are the ones another send loop has taken but not started yet.
+     */
+    suspend fun nextSendable(now: Long, excludedBatchIds: Set<String>, sim: Int? = null, excludedIds: Set<String> = emptySet()): Message?
 
     suspend fun findUnreported(): List<Message>
 

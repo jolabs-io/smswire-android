@@ -58,6 +58,7 @@ enum class ToggleKey(val label: String, val sub: String) {
     KEEP_ALIVE("Keep alive in background", "Foreground service with a persistent notification"),
     START_ON_BOOT("Start on boot", "Reconnect automatically after a restart"),
     ONLY_CHARGING("Only send while charging", "Hold the queue on battery power"),
+    PARALLEL_SIMS("Use both SIMs at once", "Twice as fast, and twice the traffic on each SIM"),
 }
 
 enum class CheckTone { OK, WARN, NEUTRAL }
@@ -158,6 +159,7 @@ class SettingsViewModel(
             ToggleKey.KEEP_ALIVE -> it.copy(keepAlive = !it.keepAlive)
             ToggleKey.START_ON_BOOT -> it.copy(startOnBoot = !it.startOnBoot)
             ToggleKey.ONLY_CHARGING -> it.copy(onlySendWhileCharging = !it.onlySendWhileCharging)
+            ToggleKey.PARALLEL_SIMS -> it.copy(parallelSims = !it.parallelSims)
         }
     }
 
@@ -234,11 +236,13 @@ class SettingsViewModel(
             inboxSync = s.inboxSync,
             updateMode = s.updateMode,
             receivesSms = device.receivesSms(),
-            toggles = listOf(
+            toggles = listOfNotNull(
                 ToggleKey.DELIVERY_REPORTS to s.requestDeliveryReports,
                 ToggleKey.KEEP_ALIVE to s.keepAlive,
                 ToggleKey.START_ON_BOOT to s.startOnBoot,
                 ToggleKey.ONLY_CHARGING to s.onlySendWhileCharging,
+                // Nothing to send in parallel with only one SIM in the phone.
+                (ToggleKey.PARALLEL_SIMS to s.parallelSims).takeIf { cards.size > 1 },
             ),
             checks = deviceChecks(device, s, limit),
             serverUrl = s.serverUrl,

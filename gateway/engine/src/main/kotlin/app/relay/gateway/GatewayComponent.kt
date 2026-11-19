@@ -97,7 +97,8 @@ class GatewayPorts(
 class GatewayComponent(
     private val ports: GatewayPorts,
     retryPolicy: RetryPolicy = BackoffRetryPolicy(),
-    throttle: SendThrottle = IntervalSendThrottle(ports.clock),
+    /** One per send loop: with a loop per SIM, each SIM is paced on its own timeline. */
+    newThrottle: () -> SendThrottle = { IntervalSendThrottle(ports.clock) },
     simSelector: SimSelector = DefaultSimSelector(ports.sims),
     extraConditions: List<SendCondition> = emptyList(),
     val segmentCalculator: SegmentCalculator = GsmSegmentCalculator,
@@ -112,9 +113,10 @@ class GatewayComponent(
         messages = ports.messages,
         batches = ports.batches,
         settings = ports.settings,
+        sims = ports.sims,
         ledger = ledger,
         conditions = listOf(GatewayOnlineCondition, ChargingCondition(ports.power)) + extraConditions,
-        throttle = throttle,
+        newThrottle = newThrottle,
         quota = SmsQuotaGuard(ports.smsQuota, ports.clock),
         segments = segmentCalculator,
         simSelector = simSelector,

@@ -36,6 +36,12 @@ data class GatewaySettings(
     val keepAlive: Boolean = true,
     val startOnBoot: Boolean = true,
     val onlySendWhileCharging: Boolean = false,
+    /**
+     * Send from every SIM at once instead of one message at a time. Each SIM then sends at up to
+     * [maxRatePerMinute], so a dual-SIM phone gets through a batch about twice as fast -- and each
+     * SIM carries twice the traffic it did while they took turns. Off until asked for.
+     */
+    val parallelSims: Boolean = false,
     val inboxSync: InboxSync = InboxSync.REPLIES,
     val updateMode: UpdateMode = UpdateMode.ASK,
     /** The relay server this phone pairs with; empty until paired (the app suggests its build's default). */

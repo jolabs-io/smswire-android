@@ -55,6 +55,7 @@ private fun GatewaySettings.with(p: RemoteSettingsPatch) = copy(
     keepAlive = p.keepAlive ?: keepAlive,
     startOnBoot = p.startOnBoot ?: startOnBoot,
     onlySendWhileCharging = p.onlySendWhileCharging ?: onlySendWhileCharging,
+    parallelSims = p.parallelSims ?: parallelSims,
     updateMode = p.updateMode?.toModel() ?: updateMode,
 )
 
@@ -67,6 +68,7 @@ private fun GatewaySettings.toRemote(receivesSms: Boolean) = RemoteSettings(
     keepAlive = keepAlive,
     startOnBoot = startOnBoot,
     onlySendWhileCharging = onlySendWhileCharging,
+    parallelSims = parallelSims,
     inboxSync = if (receivesSms) inboxSync.toWire() else InboxSyncMode.OFF,
     receivesSms = receivesSms,
     updateMode = updateMode.toWire(),

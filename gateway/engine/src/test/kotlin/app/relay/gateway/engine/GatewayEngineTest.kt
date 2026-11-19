@@ -115,6 +115,7 @@ class GatewayEngineTest {
                     keepAlive = true,
                     startOnBoot = true,
                     onlySendWhileCharging = false,
+                    parallelSims = false,
                     receivesSms = true,
                     joinKeywords = true,
                     receiveRules = true,
@@ -181,6 +182,46 @@ class GatewayEngineTest {
         advanceTimeBy(10_000)
         assertEquals(listOf(0L, 2_000L, 4_000L), h.radio.sent.map { it.first - h.radio.sent.first().first })
         assertEquals(MessageStatus.SENDING, h.status("001"))
+    }
+
+    @Test
+    fun `with its SIMs used at once, two messages go out together`() = runTest {
+        val h = Harness(this, GatewaySettings(parallelSims = true))
+        h.dispatch(h.job("001"), h.job("002"), h.job("003"), h.job("004"))
+        advanceTimeBy(1_000)
+        // One loop per SIM, so two leave at once instead of 2s apart. Which two is immaterial:
+        // they are the same age and priority.
+        assertEquals(2, h.radio.sent.size)
+        assertEquals(setOf(1, 2), h.radio.sent.map { it.second.simSlot }.toSet())
+
+        // Each SIM keeps its own pace, and nothing is left behind.
+        advanceTimeBy(2_000)
+        assertEquals(4, h.radio.sent.size)
+        assertEquals(setOf(1, 2), h.radio.sent.drop(2).map { it.second.simSlot }.toSet())
+        assertEquals(setOf("001", "002", "003", "004"), h.radio.sent.map { it.second.messageId }.toSet())
+        // Two at a time, so four take one interval rather than three.
+        assertEquals(listOf(0L, 0L, 2_000L, 2_000L), h.radio.sent.map { it.first })
+    }
+
+    @Test
+    fun `one at a time by default, from the SIM the phone prefers`() = runTest {
+        val h = Harness(this)
+        h.dispatch(h.job("001"), h.job("002"))
+        advanceTimeBy(1_000)
+        assertEquals(1, h.radio.sent.size)
+        assertEquals(1, h.radio.sent.single().second.simSlot)
+    }
+
+    @Test
+    fun `a message that names a SIM is only sent from that one`() = runTest {
+        val h = Harness(this, GatewaySettings(parallelSims = true))
+        h.dispatch(h.job("001").copy(sim = 2), h.job("002").copy(sim = 2))
+        advanceTimeBy(1_000)
+        // Both are for SIM 2, so only its loop may take them: one goes, the other waits its turn.
+        assertEquals(1, h.radio.sent.size)
+        assertEquals(2, h.radio.sent.single().second.simSlot)
+        advanceTimeBy(2_000)
+        assertEquals(listOf(2, 2), h.radio.sent.map { it.second.simSlot })
     }
 
     @Test

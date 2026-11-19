@@ -309,6 +309,33 @@
         "receiveRules": true,
         "updateMode": "auto"
       }
+    },
+    {
+      "type": "hello",
+      "gatewayOnline": true,
+      "appVersion": "2.1.0",
+      "sims": [
+        {
+          "slot": 1,
+          "carrier": "Ethio telecom"
+        }
+      ],
+      "battery": 64,
+      "charging": false,
+      "settings": {
+        "gatewayOnline": true,
+        "defaultSim": "sim1",
+        "maxRatePerMinute": 30,
+        "maxRetries": 2,
+        "requestDeliveryReports": true,
+        "keepAlive": true,
+        "startOnBoot": true,
+        "onlySendWhileCharging": false,
+        "inboxSync": "replies",
+        "updateMode": "ask",
+        "parallelSims": true
+      },
+      "appVersionCode": 261
     }
   ]
 }

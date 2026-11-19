@@ -67,10 +67,24 @@ interface MessageDao {
         SELECT * FROM messages
         WHERE status = 'QUEUED' AND notBefore <= :now
           AND (batchId IS NULL OR batchId NOT IN (:excluded))
+          AND id NOT IN (:holding)
         ORDER BY priority ASC, receivedAt ASC LIMIT 1
         """,
     )
-    suspend fun nextSendable(now: Long, excluded: List<String>): MessageEntity?
+    suspend fun nextSendable(now: Long, excluded: List<String>, holding: List<String>): MessageEntity?
+
+    /** For one SIM's send loop: what it names, plus whatever names no SIM at all. */
+    @Query(
+        """
+        SELECT * FROM messages
+        WHERE status = 'QUEUED' AND notBefore <= :now
+          AND (batchId IS NULL OR batchId NOT IN (:excluded))
+          AND id NOT IN (:holding)
+          AND (sim IS NULL OR sim = :sim)
+        ORDER BY priority ASC, receivedAt ASC LIMIT 1
+        """,
+    )
+    suspend fun nextSendableForSim(now: Long, excluded: List<String>, holding: List<String>, sim: Int): MessageEntity?
 
     @Query("SELECT * FROM messages WHERE reportedStatus IS NULL OR reportedStatus != status")
     suspend fun unreported(): List<MessageEntity>

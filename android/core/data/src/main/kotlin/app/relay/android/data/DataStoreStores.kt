@@ -49,6 +49,7 @@ class DataStoreSettingsRepository(context: Context) : SettingsRepository {
             keepAlive = p[KEEP_ALIVE] ?: d.keepAlive,
             startOnBoot = p[BOOT] ?: d.startOnBoot,
             onlySendWhileCharging = p[CHARGING] ?: d.onlySendWhileCharging,
+            parallelSims = p[PARALLEL_SIMS] ?: d.parallelSims,
             inboxSync = p[INBOX]?.let { runCatching { InboxSync.valueOf(it) }.getOrNull() } ?: d.inboxSync,
             updateMode = p[UPDATES]?.let { runCatching { UpdateMode.valueOf(it) }.getOrNull() } ?: d.updateMode,
             serverUrl = p[SERVER] ?: d.serverUrl,
@@ -64,6 +65,7 @@ class DataStoreSettingsRepository(context: Context) : SettingsRepository {
         p[KEEP_ALIVE] = s.keepAlive
         p[BOOT] = s.startOnBoot
         p[CHARGING] = s.onlySendWhileCharging
+        p[PARALLEL_SIMS] = s.parallelSims
         p[INBOX] = s.inboxSync.name
         p[UPDATES] = s.updateMode.name
         p[SERVER] = s.serverUrl
@@ -78,6 +80,7 @@ class DataStoreSettingsRepository(context: Context) : SettingsRepository {
         val KEEP_ALIVE = booleanPreferencesKey("keep_alive")
         val BOOT = booleanPreferencesKey("start_on_boot")
         val CHARGING = booleanPreferencesKey("only_charging")
+        val PARALLEL_SIMS = booleanPreferencesKey("parallel_sims")
         val INBOX = stringPreferencesKey("inbox_sync")
         val UPDATES = stringPreferencesKey("update_mode")
         val SERVER = stringPreferencesKey("server_url")

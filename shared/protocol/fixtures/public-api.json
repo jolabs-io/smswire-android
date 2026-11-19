@@ -34,6 +34,17 @@
       "to": "+447700900123",
       "body": "Your appointment is tomorrow at 10:00",
       "send_at": "2026-11-02T08:00:00Z"
+    },
+    {
+      "to": "+447700900123",
+      "body": "Hi",
+      "phone": "dev_7f2k9m3q1xzc",
+      "sim": 2
+    },
+    {
+      "to": "+447700900123",
+      "body": "Hi",
+      "from": "safaricom-main"
     }
   ],
   "BulkSendRequest": [
@@ -99,6 +110,26 @@
           "variables": {
             "slot": "10:00"
           }
+        }
+      ]
+    },
+    {
+      "name": "Weekend sale",
+      "phone": "dev_7f2k9m3q1xzc",
+      "body": "Hi, 20% off this weekend.",
+      "messages": [
+        {
+          "to": "+447700900123"
+        }
+      ]
+    },
+    {
+      "name": "Weekend sale",
+      "from": "safaricom-main",
+      "body": "Hi",
+      "messages": [
+        {
+          "to": "+447700900123"
         }
       ]
     }

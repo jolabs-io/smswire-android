@@ -18,6 +18,22 @@ Each release gets a section before its android-vX.Y.Z tag is pushed (the release
 Use "### New", "### Changed" and "### Fixed". A beta gets its own section ("## 1.2.0-beta.1").
 -->
 
+## 1.6.0-beta.1 — 2026-11-19
+
+### New
+- Use every SIM at once, under Settings on a phone with two SIMs. Each SIM sends on its own, so a
+  batch goes out about twice as fast. It is off until you turn it on, because each SIM then carries
+  twice the traffic it did while they took turns, which a carrier may notice.
+- A SIM can be given a name on its phone's page on the web ("safaricom-main"), and its own number
+  typed in. A send can then ask for that SIM by name instead of naming a phone and a slot.
+
+### Changed
+- A project with several phones now shares its queue between them instead of using the first one
+  that is online, so they send a batch together. Each phone takes only what its own send rate has
+  room for, and a phone that drops out mid-batch no longer holds its share: the others carry on.
+- A number keeps being texted from the phone that texted it last, so replies and STOP stay in one
+  thread. Set on the web, per project.
+
 ## 1.5.0 — 2026-11-17
 
 ### New

@@ -65,8 +65,11 @@ class InMemoryMessageRepository : MessageRepository {
 
     override suspend fun update(message: Message) = store.update { it + (message.id to message) }
 
-    override suspend fun nextSendable(now: Long, excludedBatchIds: Set<String>) = store.value.values
-        .filter { it.status == MessageStatus.QUEUED && it.notBefore <= now && it.batchId !in excludedBatchIds }
+    override suspend fun nextSendable(now: Long, excludedBatchIds: Set<String>, sim: Int?, excludedIds: Set<String>) = store.value.values
+        .filter {
+            it.status == MessageStatus.QUEUED && it.notBefore <= now && it.batchId !in excludedBatchIds && it.id !in excludedIds &&
+                (sim == null || it.sim == null || it.sim == sim)
+        }
         .minWithOrNull(compareBy<Message>({ it.priority }, { it.timeline.receivedAt }))
 
     override suspend fun findUnreported() = store.value.values.filter { it.needsReport }
