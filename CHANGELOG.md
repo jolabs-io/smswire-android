@@ -18,6 +18,13 @@ Each release gets a section before its android-vX.Y.Z tag is pushed (the release
 Use "### New", "### Changed" and "### Fixed". A beta gets its own section ("## 1.2.0-beta.1").
 -->
 
+## 1.7.0 — 2026-11-21
+
+### Changed
+- The pairing code on the web now shows a QR you can scan with the phone's camera before the app is
+  installed: it opens the download page with the code already there, instead of the phone saying
+  nothing can handle it. "Scan pairing code" in the app reads that QR as well as the older one.
+
 ## 1.6.0 — 2026-11-19
 
 ### New

@@ -24,6 +24,7 @@ import app.relay.android.service.GatewayService
 import app.relay.android.telephony.DefaultSmsApp
 import app.relay.android.ui.RelayApp
 import app.relay.android.ui.RestrictedSmsState
+import app.relay.gateway.service.DeviceSetup
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
 import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
@@ -116,9 +117,10 @@ class MainActivity : ComponentActivity() {
         if (intent?.action == UpdateNotifications.ACTION_OPEN_UPDATE) container.openUpdate.value = true
     }
 
-    /** The camera app opened the web's pairing QR: the pairing screen fills the server and code from it. */
+    /** A pairing link was opened: the pairing screen fills the server and code from it. */
     private fun takePairingLink(intent: Intent?) {
-        val link = intent?.data?.takeIf { it.scheme == "smswire" }?.toString() ?: return
+        // One definition of what a pairing link is, shared with the in-app scanner.
+        val link = intent?.data?.toString()?.takeIf { DeviceSetup.parseLink(it) != null } ?: return
         container.pairingLinks.value = link
     }
 

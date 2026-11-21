@@ -111,6 +111,23 @@ class DeviceSetupTest {
         assertNull(DeviceSetup.parseLink("josms://pair?s=https%3A%2F%2Fapi.relay.app&c=AAAA"))
     }
 
+    @Test
+    fun `reads the web's pairing page, on any host and in any language`() {
+        val expected = PairingLink("https://api.relay.app", "KTQZ-W8ZJ")
+        assertEquals(expected, DeviceSetup.parseLink("https://smswire.app/pair?s=https%3A%2F%2Fapi.relay.app%2F&c=KTQZ-W8ZJ"))
+        // A self-hosted site, and the page in another language.
+        assertEquals(expected, DeviceSetup.parseLink("https://sms.selfhost.example/am/pair?s=https%3A%2F%2Fapi.relay.app&c=KTQZ-W8ZJ"))
+        assertEquals(expected, DeviceSetup.parseLink("https://smswire.app/pair/?s=https%3A%2F%2Fapi.relay.app&c=KTQZ-W8ZJ"))
+        assertEquals(
+            PairingLink("http://10.0.2.2:8080", "AAAA-BBBB"),
+            DeviceSetup.parseLink("http://localhost:5173/pair?s=http%3A%2F%2F10.0.2.2%3A8080&c=AAAA-BBBB"),
+        )
+        // Another page of the same site is not a pairing link, however it is dressed up.
+        assertNull(DeviceSetup.parseLink("https://smswire.app/download?s=https%3A%2F%2Fapi.relay.app&c=AAAA"))
+        assertNull(DeviceSetup.parseLink("https://smswire.app/repair?s=https%3A%2F%2Fapi.relay.app&c=AAAA"))
+        assertNull(DeviceSetup.parseLink("https://smswire.app/pair"))
+    }
+
     private class Rig(phoneKey: String? = null) {
         val identity = InMemoryDeviceIdentityStore()
         val settings = InMemorySettingsRepository()

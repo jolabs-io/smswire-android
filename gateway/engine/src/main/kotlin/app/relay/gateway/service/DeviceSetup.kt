@@ -19,7 +19,10 @@ import kotlinx.coroutines.withContext
 import java.net.URI
 import java.net.URLDecoder
 
-/** What a pairing QR carries: `smswire://pair?s=<server url>&c=<code>`. */
+/**
+ * What a pairing link carries, in either shape: the app's own `smswire://pair?s=<server url>&c=<code>`,
+ * or the web's `https://<host>/pair?s=…&c=…`, which a phone camera can read before the app is there.
+ */
 data class PairingLink(val serverUrl: String, val code: String)
 
 /** What [DeviceSetup.switchTo] did. */
@@ -153,10 +156,10 @@ class DeviceSetup(
             return normalized
         }
 
-        /** Reads a scanned pairing QR; null if it isn't one. */
+        /** Reads a scanned pairing QR, or a pairing link the phone opened; null if it isn't one. */
         fun parseLink(text: String): PairingLink? {
             val uri = runCatching { URI(text.trim()) }.getOrNull() ?: return null
-            if (uri.scheme != "smswire" || uri.host != "pair") return null
+            if (!isPairLink(uri)) return null
             val params = uri.rawQuery.orEmpty().split('&').mapNotNull { part ->
                 val (k, v) = part.split('=', limit = 2).takeIf { it.size == 2 } ?: return@mapNotNull null
                 k to URLDecoder.decode(v, Charsets.UTF_8)
@@ -164,6 +167,17 @@ class DeviceSetup(
             val server = params["s"]?.takeIf { it.startsWith("http://") || it.startsWith("https://") } ?: return null
             val code = params["c"]?.takeIf { it.isNotBlank() } ?: return null
             return PairingLink(server.trimEnd('/'), code)
+        }
+
+        /**
+         * Both shapes, on any host: the web's pairing page is served by whichever deployment made
+         * the code, and its language prefix (`/am/pair`) is still that page. What makes a link a
+         * pairing link is a usable server and code, not where it came from.
+         */
+        private fun isPairLink(uri: URI): Boolean = when (uri.scheme?.lowercase()) {
+            "smswire" -> uri.host == "pair"
+            "http", "https" -> uri.path.orEmpty().trimEnd('/').substringAfterLast('/') == "pair"
+            else -> false
         }
     }
 }

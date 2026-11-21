@@ -35,7 +35,13 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            <!-- The web's pairing QR (smswire://pair?s=<server>&c=<code>), scanned with the camera app. -->
+            <!--
+              The app's own pairing link, which the web's "Open the app" button uses. The QR itself
+              carries https://<site>/pair?s=<server>&c=<code>, so a camera can read it before the app
+              is installed; claiming that https link needs App Links (assetlinks.json), not an
+              unverified filter, which Android 12+ ignores and Android 8-11 would turn into a chooser
+              on every link to the site.
+            -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
