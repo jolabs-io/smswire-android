@@ -2,6 +2,10 @@
 
 The [SMSWire](https://smswire.app) phone app turns an Android phone into an SMS gateway: your web app sends texts through the SIM in your own phone, and gets delivery reports and replies on its webhook.
 
+<a href="https://www.youtube.com/watch?v=aA5PCVwdjEE"><img src="https://img.youtube.com/vi/aA5PCVwdjEE/maxresdefault.jpg" alt="Watch the SMSWire intro video" width="560"></a>
+
+[▶ Watch the SMSWire intro](https://www.youtube.com/watch?v=aA5PCVwdjEE)
+
 This is the app's full source, under the [GPL-3.0](LICENSE). The server it pairs with is the hosted SMSWire service; it isn't in this repository. Every release here is built from the source at its tag.
 
 ## What the app does with your phone
