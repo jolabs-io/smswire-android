@@ -16,6 +16,8 @@ import app.relay.gateway.data.memory.InMemorySettingsRepository
 import app.relay.gateway.model.DeviceIdentity
 import app.relay.gateway.model.GatewaySettings
 import app.relay.gateway.model.InboxSync
+import app.relay.gateway.model.Message
+import app.relay.gateway.model.MessageTimeline
 import app.relay.gateway.model.ReceiveRules
 import app.relay.gateway.model.SimPreference
 import app.relay.gateway.port.ConnectionState
@@ -48,7 +50,12 @@ import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class GatewayEngineTest {
-    private class Harness(scope: TestScope, settings: GatewaySettings = GatewaySettings(), receivesSms: Boolean = true) {
+    private class Harness(
+        scope: TestScope,
+        settings: GatewaySettings = GatewaySettings(),
+        receivesSms: Boolean = true,
+        val sims: FakeSims = FakeSims(),
+    ) {
         val messages = InMemoryMessageRepository()
         val batches = InMemoryBatchRepository()
         val settingsRepo = InMemorySettingsRepository(settings)
@@ -69,7 +76,7 @@ class GatewayEngineTest {
                 api = api,
                 sender = radio,
                 smsEvents = radio,
-                sims = FakeSims(),
+                sims = sims,
                 power = power,
                 clock = FakeClock { scope.testScheduler.currentTime },
                 appVersion = "test",
@@ -91,6 +98,17 @@ class GatewayEngineTest {
         }
 
         suspend fun status(id: String) = messages.find(id)!!.status
+
+        /** History: a message to [to] that went out from [sim] earlier, as if from before a restart. */
+        suspend fun texted(to: String, sim: Int) {
+            val id = "old-${messages.all.size}"
+            messages.insertIfAbsent(
+                Message(id, "p1", to, "hi", MessageStatus.DELIVERED, MessageTimeline(0, 0, sentAt = 0, deliveredAt = 0), sim = sim, reportedStatus = MessageStatus.DELIVERED),
+            )
+        }
+
+        /** Message id to the SIM it went out from. */
+        fun sentFrom() = radio.sent.associate { it.second.messageId to it.second.simSlot }
 
         fun reports() = connection.sent.filterIsInstance<DeviceFrame.StatusReport>()
     }
@@ -222,6 +240,66 @@ class GatewayEngineTest {
         assertEquals(2, h.radio.sent.single().second.simSlot)
         advanceTimeBy(2_000)
         assertEquals(listOf(2, 2), h.radio.sent.map { it.second.simSlot })
+    }
+
+    @Test
+    fun `taking turns, a person stays on the SIM that texted them last`() = runTest {
+        val h = Harness(this, GatewaySettings(defaultSim = SimPreference.ALTERNATE))
+        h.dispatch(h.job("001"), h.job("002"))
+        advanceTimeBy(3_000)
+        // 003 is for the person 002 reached on SIM 2; 004 is someone new and takes the next turn.
+        h.dispatch(h.job("003").copy(to = h.job("002").to), h.job("004"))
+        advanceTimeBy(5_000)
+        assertEquals(mapOf("001" to 1, "002" to 2, "003" to 2, "004" to 1), h.sentFrom())
+    }
+
+    @Test
+    fun `after a restart the phone still keeps people on their SIM`() = runTest {
+        val h = Harness(this, GatewaySettings(defaultSim = SimPreference.ALTERNATE))
+        h.texted(h.job("001").to, sim = 2)
+        h.dispatch(h.job("001"), h.job("002"))
+        advanceTimeBy(3_000)
+        // A fresh engine's first turn is SIM 1; the history keeps 001's person on SIM 2.
+        assertEquals(mapOf("001" to 2, "002" to 1), h.sentFrom())
+    }
+
+    @Test
+    fun `with every SIM at once, each loop leaves people on their own SIM`() = runTest {
+        val h = Harness(this, GatewaySettings(defaultSim = SimPreference.ALTERNATE, parallelSims = true))
+        h.texted(h.job("001").to, sim = 2)
+        h.texted(h.job("002").to, sim = 1)
+        h.dispatch(h.job("001"), h.job("002"))
+        advanceTimeBy(1_000)
+        // SIM 1's loop wakes first and would take 001, the oldest; it leaves it to SIM 2.
+        assertEquals(mapOf("001" to 2, "002" to 1), h.sentFrom())
+    }
+
+    @Test
+    fun `with every SIM at once, two messages to someone new go out from one SIM`() = runTest {
+        val h = Harness(this, GatewaySettings(defaultSim = SimPreference.ALTERNATE, parallelSims = true))
+        // Each SIM sends one now and holds the next until its 2s slot, so neither is free.
+        h.dispatch(h.job("001"), h.job("002"), h.job("003"), h.job("004"))
+        advanceTimeBy(100)
+        val person = "+251911234567"
+        h.dispatch(h.job("005").copy(to = person), h.job("006").copy(to = person))
+        advanceTimeBy(6_500)
+        // At 2s one loop takes 005 and holds it for its next slot, before the history can show it;
+        // the other leaves 006 to that loop rather than send it from its own number alongside.
+        val toPerson = h.radio.sent.filter { it.second.to == person }
+        assertEquals(1, toPerson.map { it.second.simSlot }.distinct().size)
+        assertEquals(listOf(4_000L, 6_000L), toPerson.map { it.first })
+    }
+
+    @Test
+    fun `with every SIM at once, a person's SIM without a loop doesn't strand their message`() = runTest {
+        val sims = FakeSims(listOf(1))
+        val h = Harness(this, GatewaySettings(defaultSim = SimPreference.ALTERNATE, parallelSims = true), sims = sims)
+        // SIM 2 goes in after the loops started: it has no loop until the settings change or a restart.
+        sims.slots = listOf(1, 2)
+        h.texted(h.job("001").to, sim = 2)
+        h.dispatch(h.job("001"))
+        advanceTimeBy(1_000)
+        assertEquals(mapOf("001" to 1), h.sentFrom())
     }
 
     @Test

@@ -63,7 +63,8 @@ class FakeSmsSender : SmsSender, SmsEventSource {
     }
 }
 
-class FakeSims(private val slots: List<Int> = listOf(1, 2)) : SimCardProvider {
+/** [slots] can change under a running engine, as when a SIM is taken out or put in. */
+class FakeSims(var slots: List<Int> = listOf(1, 2)) : SimCardProvider {
     override fun available() = slots.map { SimCard(it, "Carrier $it", it) }
 }
 

@@ -41,6 +41,13 @@ interface MessageRepository {
     /** The projects that messaged a number ending in [digits] since [since]. */
     suspend fun textedBy(digits: String, since: Long): Set<String>
 
+    /**
+     * The SIM slot of the latest message to a number ending in [digits] that went out since [since]
+     * (sending, sent or delivered), however the number was written; null if none did. Queued ones
+     * don't count -- their SIM is only a request -- nor failed ones, which never reached the person.
+     */
+    suspend fun lastSimFor(digits: String, since: Long): Int?
+
     fun observeStatusCounts(since: Long): Flow<StatusCounts>
 
     fun observeSentTimes(since: Long): Flow<List<Long>>

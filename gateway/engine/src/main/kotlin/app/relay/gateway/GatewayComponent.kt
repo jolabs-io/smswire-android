@@ -99,7 +99,7 @@ class GatewayComponent(
     retryPolicy: RetryPolicy = BackoffRetryPolicy(),
     /** One per send loop: with a loop per SIM, each SIM is paced on its own timeline. */
     newThrottle: () -> SendThrottle = { IntervalSendThrottle(ports.clock) },
-    simSelector: SimSelector = DefaultSimSelector(ports.sims),
+    simSelector: SimSelector = DefaultSimSelector(ports.sims, ports.messages, ports.clock),
     extraConditions: List<SendCondition> = emptyList(),
     val segmentCalculator: SegmentCalculator = GsmSegmentCalculator,
     /** Where app-lifetime work runs (updating the app). */

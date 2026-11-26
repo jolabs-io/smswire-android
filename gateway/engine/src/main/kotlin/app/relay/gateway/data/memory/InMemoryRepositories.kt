@@ -55,6 +55,14 @@ class InMemoryMessageRepository : MessageRepository {
     override suspend fun textedBy(digits: String, since: Long) =
         store.value.values.filter { it.timeline.receivedAt >= since && it.to.filter(Char::isDigit).endsWith(digits) }.map { it.projectId }.toSet()
 
+    override suspend fun lastSimFor(digits: String, since: Long) = store.value.values
+        .filter {
+            it.timeline.receivedAt >= since && it.sim != null && it.status in WENT_OUT &&
+                it.to.filter(Char::isDigit).endsWith(digits)
+        }
+        .maxByOrNull { it.timeline.receivedAt }
+        ?.sim
+
     override suspend fun insertIfAbsent(message: Message): Boolean {
         var inserted = false
         store.update { current ->
@@ -102,6 +110,11 @@ class InMemoryMessageRepository : MessageRepository {
     override suspend fun clearForNewWorkspace(keepHistory: Boolean) = store.update { current ->
         if (!keepHistory) emptyMap()
         else current.filterValues { !it.status.isPending }.mapValues { (_, m) -> m.copy(reportedStatus = m.status) }
+    }
+
+    private companion object {
+        /** Handed to the radio on a SIM, and not failed: the person saw that SIM's number. */
+        val WENT_OUT = setOf(MessageStatus.SENDING, MessageStatus.SENT, MessageStatus.DELIVERED)
     }
 }
 

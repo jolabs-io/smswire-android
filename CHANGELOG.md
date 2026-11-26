@@ -18,6 +18,13 @@ Each release gets a section before its android-vX.Y.Z tag is pushed (the release
 Use "### New", "### Changed" and "### Fixed". A beta gets its own section ("## 1.2.0-beta.1").
 -->
 
+## 1.8.0 — 2026-11-26
+
+### Changed
+- On a phone with two SIMs set to take turns, each person now keeps getting texts from the SIM that
+  last texted them (for 30 days), so they see one number instead of two. People you haven't texted
+  yet still go to the SIMs in turn.
+
 ## 1.7.0 — 2026-11-21
 
 ### Changed

@@ -1,6 +1,7 @@
 package app.relay.gateway.engine
 
 import app.relay.gateway.model.Message
+import app.relay.gateway.model.SimPreference
 import app.relay.gateway.port.BatchRepository
 import app.relay.gateway.port.Clock
 import app.relay.gateway.port.MessageRepository
@@ -26,6 +27,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 
 /**
@@ -36,7 +38,9 @@ import java.util.concurrent.CopyOnWriteArrayList
  * With `parallelSims` on there is one such loop per SIM, each with its own throttle, so a
  * dual-SIM phone has two messages in the air at once. They share the platform quota, which
  * counts parts per app rather than per SIM. A loop takes only what its SIM can send: messages
- * for that slot, and those that name none.
+ * for that slot, and those that name none. Taking turns between SIMs, a loop also leaves a
+ * message to the SIM its recipient stays on (see [DefaultSimSelector]) when that SIM has a loop
+ * of its own, so one person doesn't hear from both numbers.
  */
 class MessageDispatcher(
     private val messages: MessageRepository,
@@ -63,9 +67,15 @@ class MessageDispatcher(
      */
     private val wakers = CopyOnWriteArrayList<Channel<Unit>>()
 
-    /** Taken by a loop but not yet moved to sending, so the other loops leave it alone. */
+    /** Taken by a loop but not yet moved to sending, so the other loops leave it alone. By id. */
     private val taking = Mutex()
-    private val taken = mutableSetOf<String>()
+    private val taken = mutableMapOf<String, Held>()
+
+    /** The SIMs that have a send loop of their own right now. */
+    private val looping: MutableSet<Int> = ConcurrentHashMap.newKeySet()
+
+    /** Which loop holds a message, and who it is for (null for a name or a short code). */
+    private class Held(val slot: Int?, val person: String?)
 
     /** Nudges the idle loops; call when new work arrives or a batch resumes. */
     fun wake() {
@@ -93,10 +103,12 @@ class MessageDispatcher(
         val throttle = newThrottle()
         val waker = Channel<Unit>(Channel.CONFLATED)
         wakers += waker
+        if (slot != null) looping += slot
         try {
             loop(slot, ready, throttle, waker)
         } finally {
             wakers -= waker
+            if (slot != null) looping -= slot
         }
     }
 
@@ -104,7 +116,7 @@ class MessageDispatcher(
         while (true) {
             ready.first { it }
             val config = settings.current()
-            val next = take(slot)
+            val next = take(slot, config.defaultSim)
             if (next == null) {
                 withTimeoutOrNull(idlePollMs) { waker.receive() }
                 continue
@@ -117,7 +129,7 @@ class MessageDispatcher(
                 if (!ready.value) continue
 
                 // A loop bound to a SIM sends from it; the message's own choice still wins.
-                val sim = simSelector.select(next.sim ?: slot, config.defaultSim)
+                val sim = simSelector.select(next.sim ?: slot, config.defaultSim, next.to)
                 val sending = ledger.transition(next.id, Transition.StartSending(sim), clock.now()) ?: continue
                 started = true
                 statusSync.report(sending)
@@ -143,12 +155,42 @@ class MessageDispatcher(
         }
     }
 
-    /** The next message for [slot] that no other loop is holding. */
-    private suspend fun take(slot: Int?): Message? = taking.withLock {
-        val next = messages.nextSendable(clock.now(), batches.pausedIds(), slot, taken) ?: return@withLock null
-        taken += next.id
-        next
+    /**
+     * The next message for [slot] that no other loop is holding. A SIM's loop passes over a few that
+     * belong to another loop; if the queue starts with more than that, it waits for them to go.
+     */
+    private suspend fun take(slot: Int?, preference: SimPreference): Message? = taking.withLock {
+        val now = clock.now()
+        val paused = batches.pausedIds()
+        // Kept small: Room binds every excluded id as its own variable.
+        val passed = mutableSetOf<String>()
+        var next = messages.nextSendable(now, paused, slot, taken.keys)
+        while (next != null && slot != null && preference == SimPreference.ALTERNATE && next.sim == null &&
+            belongsElsewhere(next, slot, preference)
+        ) {
+            passed += next.id
+            if (passed.size >= MAX_PASSED) return@withLock null
+            next = messages.nextSendable(now, paused, slot, taken.keys + passed)
+        }
+        next?.also { taken[it.id] = Held(slot, ReceiveFilter.personDigits(it.to)) }
+    }
+
+    /**
+     * Whether [message] should go out from another loop's SIM: the one already holding a message to
+     * the same person (it isn't sending yet, so the history can't tell), else the SIM that texted
+     * them last. Only a SIM with a loop of its own, or nothing would ever send it.
+     */
+    private suspend fun belongsElsewhere(message: Message, slot: Int, preference: SimPreference): Boolean {
+        val person = ReceiveFilter.personDigits(message.to)
+        if (person != null && taken.values.any { it.person == person && it.slot != null && it.slot != slot }) return true
+        val home = simSelector.stickySim(message.to, preference) ?: return false
+        return home != slot && home in looping
     }
 
     private suspend fun release(id: String) = taking.withLock { taken -= id }
+
+    private companion object {
+        /** How many messages for other SIMs a loop looks past before it waits. */
+        const val MAX_PASSED = 8
+    }
 }

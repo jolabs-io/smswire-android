@@ -3,6 +3,7 @@ package app.relay.gateway.engine
 import app.relay.gateway.model.GatewaySettings
 import app.relay.gateway.model.SimPreference
 import app.relay.gateway.port.Clock
+import app.relay.gateway.port.MessageRepository
 import app.relay.gateway.port.PowerMonitor
 import app.relay.gateway.port.SimCardProvider
 import app.relay.gateway.port.SmsQuotaProvider
@@ -81,26 +82,54 @@ class BackoffRetryPolicy(
 }
 
 /** Picks the SIM slot for a message. */
-fun interface SimSelector {
-    fun select(requested: Int?, preference: SimPreference): Int?
+interface SimSelector {
+    /** The slot a message to [to] goes out on: [requested] if any, else as [preference] says. */
+    suspend fun select(requested: Int?, preference: SimPreference, to: String): Int?
+
+    /**
+     * The SIM [to] should stay on while the phone takes turns between its SIMs, or null when any
+     * may send it. A preference, not a binding: it is only named while that SIM can send.
+     */
+    suspend fun stickySim(to: String, preference: SimPreference): Int? = null
 }
 
 /**
  * A requested SIM (by the API or the project) is binding: it is never swapped for another,
  * so the recipient always sees the expected number. The sender fails it if it's missing.
+ *
+ * Taking turns ([SimPreference.ALTERNATE]), each person stays on the SIM that last texted them
+ * within the reply window, so they keep hearing from one number; people new to the phone go to
+ * the next SIM in turn, which spreads the load. That SIM is read from the message history, so it
+ * holds across restarts. When it is gone, the message takes the next turn instead: getting it out
+ * beats holding the number. Mirrors the server keeping a person on the phone that texted them last.
  */
-class DefaultSimSelector(private val sims: SimCardProvider) : SimSelector {
+class DefaultSimSelector(
+    private val sims: SimCardProvider,
+    private val messages: MessageRepository,
+    private val clock: Clock,
+) : SimSelector {
     private val next = AtomicInteger(0)
 
-    override fun select(requested: Int?, preference: SimPreference): Int? {
+    override suspend fun select(requested: Int?, preference: SimPreference, to: String): Int? {
         if (requested != null) return requested
         val slots = sims.available().map { it.slot }
         if (slots.isEmpty()) return null
         return when (preference) {
             SimPreference.SIM1 -> slots.firstOrNull { it == 1 } ?: slots.first()
             SimPreference.SIM2 -> slots.firstOrNull { it == 2 } ?: slots.first()
-            SimPreference.ALTERNATE -> slots[Math.floorMod(next.getAndIncrement(), slots.size)]
+            // A sticky pick doesn't use up a turn, so new people still split evenly.
+            SimPreference.ALTERNATE -> sticky(to, slots) ?: slots[Math.floorMod(next.getAndIncrement(), slots.size)]
         }
+    }
+
+    override suspend fun stickySim(to: String, preference: SimPreference): Int? =
+        if (preference == SimPreference.ALTERNATE) sticky(to, sims.available().map { it.slot }) else null
+
+    /** The SIM that last texted [to], while it is one of [slots]; only asked when there is a choice. */
+    private suspend fun sticky(to: String, slots: List<Int>): Int? {
+        if (slots.size < 2) return null
+        val digits = ReceiveFilter.personDigits(to) ?: return null
+        return messages.lastSimFor(digits, clock.now() - GatewaySettings.REPLY_WINDOW_MS)?.takeIf { it in slots }
     }
 }
 

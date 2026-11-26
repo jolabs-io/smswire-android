@@ -47,6 +47,8 @@ class RoomMessageRepository(private val dao: MessageDao) : MessageRepository {
 
     override suspend fun textedBy(digits: String, since: Long) = dao.textedBy(digits, since).toSet()
 
+    override suspend fun lastSimFor(digits: String, since: Long) = dao.lastSimFor(digits, since)
+
     override suspend fun insertIfAbsent(message: Message) = dao.insert(message.toEntity()) != -1L
 
     override suspend fun update(message: Message) = dao.update(message.toEntity())

@@ -55,6 +55,23 @@ interface MessageDao {
     )
     suspend fun textedBy(digits: String, since: Long): List<String>
 
+    /**
+     * The SIM of the newest message to a number ending in [digits] that went out since [since],
+     * written as in [messagedSince]. Walks the receivedAt index from the newest row and stops at the
+     * first match; `+status` keeps SQLite off the status index, which would sort the whole window.
+     */
+    @Query(
+        """
+        SELECT sim FROM messages
+        WHERE receivedAt >= :since
+          AND sim IS NOT NULL
+          AND +status IN ('SENDING', 'SENT', 'DELIVERED')
+          AND REPLACE(REPLACE(REPLACE(REPLACE(recipient, ' ', ''), '-', ''), '(', ''), ')', '') LIKE '%' || :digits
+        ORDER BY receivedAt DESC LIMIT 1
+        """,
+    )
+    suspend fun lastSimFor(digits: String, since: Long): Int?
+
     /** Returns -1 when the id already exists. */
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insert(entity: MessageEntity): Long
